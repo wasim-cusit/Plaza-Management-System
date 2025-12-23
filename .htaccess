@@ -1,0 +1,27 @@
+# Plaza Management System - Apache Configuration
+
+# Enable Rewrite Engine
+RewriteEngine On
+
+# Prevent directory listing
+Options -Indexes
+
+# Protect sensitive files
+<FilesMatch "\.(sql|log|ini)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Set default charset
+AddDefaultCharset UTF-8
+
+# PHP Settings
+php_value upload_max_filesize 10M
+php_value post_max_size 10M
+php_value max_execution_time 300
+php_value max_input_time 300
+
+# Error pages (optional)
+# ErrorDocument 404 /plaza_ms/404.php
+# ErrorDocument 500 /plaza_ms/500.php
+
