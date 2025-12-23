@@ -113,19 +113,19 @@ include '../includes/header.php';
                 ?>
                 <div class="space-card">
                     <div class="space-card-header">
-                        <div>
-                            <h3>
-                                <span class="badge badge-info"><?php echo ucfirst($space['space_type']); ?></span>
-                                <?php echo htmlspecialchars($space['space_number']); ?>
-                            </h3>
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.15rem;">
+                                <span class="badge badge-info" style="font-size: 0.65rem; padding: 0.15rem 0.4rem;"><?php echo ucfirst($space['space_type']); ?></span>
+                                <strong style="font-size: 0.9rem; font-weight: 600;"><?php echo htmlspecialchars($space['space_number']); ?></strong>
+                            </div>
                             <?php if ($space['space_name']): ?>
-                                <p style="color: var(--text-light); margin: 0.25rem 0;"><?php echo htmlspecialchars($space['space_name']); ?></p>
+                                <p style="color: rgba(255, 255, 255, 0.9); margin: 0; font-size: 0.75rem;"><?php echo htmlspecialchars($space['space_name']); ?></p>
                             <?php endif; ?>
                         </div>
                         <span class="badge badge-<?php 
                             echo $space['status'] === 'occupied' ? 'success' : 
                                 ($space['status'] === 'maintenance' ? 'warning' : 'secondary'); 
-                        ?>">
+                        ?>" style="font-size: 0.7rem; padding: 0.2rem 0.5rem;">
                             <?php echo ucfirst($space['status']); ?>
                         </span>
                     </div>
@@ -351,24 +351,25 @@ document.getElementById('assignForm').addEventListener('submit', function(e) {
 }
 
 .space-card-header {
-    padding: 1.5rem;
+    padding: 0.6rem 0.875rem;
     background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
     color: white;
     display: flex;
     justify-content: space-between;
-    align-items: start;
+    align-items: center;
+    min-height: auto;
 }
 
 .space-card-header h3 {
     margin: 0;
-    font-size: 1.25rem;
+    font-size: 0.9rem;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
 }
 
 .space-card-body {
-    padding: 1.5rem;
+    padding: 1rem;
 }
 
 .space-info {
@@ -399,7 +400,7 @@ document.getElementById('assignForm').addEventListener('submit', function(e) {
 }
 
 .space-card-footer {
-    padding: 1rem 1.5rem;
+    padding: 0.75rem 1rem;
     background: var(--light-color);
     display: flex;
     gap: 0.5rem;

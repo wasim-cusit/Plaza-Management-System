@@ -160,12 +160,23 @@ if (isLoggedIn()) {
                     <h1><?php echo isset($page_title) ? $page_title : 'Plaza Management System'; ?></h1>
                 </div>
                 <div class="header-user">
-                    <div class="user-info-header">
+                    <div class="user-info-header" id="userInfoHeader">
                         <div class="user-info-text">
                             <div class="user-name-header"><?php echo htmlspecialchars($current_user['full_name']); ?></div>
                             <div class="user-role-header"><?php echo $current_user['user_type'] === 'tenant' ? 'Customer' : ucfirst($current_user['user_type']); ?></div>
                         </div>
                         <i class="fas fa-user-circle"></i>
+                        <i class="fas fa-chevron-down user-dropdown-icon"></i>
+                    </div>
+                    <div class="user-dropdown-menu" id="userDropdownMenu">
+                        <a href="<?php echo BASE_URL; ?>admin/profile.php" class="dropdown-item">
+                            <i class="fas fa-user"></i>
+                            <span>Profile</span>
+                        </a>
+                        <a href="<?php echo BASE_URL; ?>logout.php" class="dropdown-item">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span>Logout</span>
+                        </a>
                     </div>
                 </div>
             </header>

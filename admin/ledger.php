@@ -9,7 +9,7 @@ $message_type = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['action'])) {
         if ($_POST['action'] === 'add') {
-            $tenant_id = intval($_POST['tenant_id']);
+            $customer_id = intval($_POST['customer_id']);
             $agreement_id = !empty($_POST['agreement_id']) ? intval($_POST['agreement_id']) : null;
             $transaction_type = $_POST['transaction_type'];
             $amount = floatval($_POST['amount']);
@@ -19,8 +19,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $status = $_POST['status'];
             $invoice_number = trim($_POST['invoice_number']);
 
-            $stmt = $conn->prepare("INSERT INTO ledger (tenant_id, agreement_id, transaction_type, amount, payment_date, payment_method, description, status, invoice_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param("iisdsdsss", $tenant_id, $agreement_id, $transaction_type, $amount, $payment_date, $payment_method, $description, $status, $invoice_number);
+            $stmt = $conn->prepare("INSERT INTO ledger (customer_id, agreement_id, transaction_type, amount, payment_date, payment_method, description, status, invoice_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param("iisdsdsss", $customer_id, $agreement_id, $transaction_type, $amount, $payment_date, $payment_method, $description, $status, $invoice_number);
             
             if ($stmt->execute()) {
                 $message = 'Ledger entry added successfully!';
@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->close();
         } elseif ($_POST['action'] === 'update') {
             $ledger_id = intval($_POST['ledger_id']);
-            $tenant_id = intval($_POST['tenant_id']);
+            $customer_id = intval($_POST['customer_id']);
             $agreement_id = !empty($_POST['agreement_id']) ? intval($_POST['agreement_id']) : null;
             $transaction_type = $_POST['transaction_type'];
             $amount = floatval($_POST['amount']);
@@ -42,8 +42,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $status = $_POST['status'];
             $invoice_number = trim($_POST['invoice_number']);
 
-            $stmt = $conn->prepare("UPDATE ledger SET tenant_id = ?, agreement_id = ?, transaction_type = ?, amount = ?, payment_date = ?, payment_method = ?, description = ?, status = ?, invoice_number = ? WHERE ledger_id = ?");
-            $stmt->bind_param("iisdsdsssi", $tenant_id, $agreement_id, $transaction_type, $amount, $payment_date, $payment_method, $description, $status, $invoice_number, $ledger_id);
+            $stmt = $conn->prepare("UPDATE ledger SET customer_id = ?, agreement_id = ?, transaction_type = ?, amount = ?, payment_date = ?, payment_method = ?, description = ?, status = ?, invoice_number = ? WHERE ledger_id = ?");
+            $stmt->bind_param("iisdsdsssi", $customer_id, $agreement_id, $transaction_type, $amount, $payment_date, $payment_method, $description, $status, $invoice_number, $ledger_id);
             
             if ($stmt->execute()) {
                 $message = 'Ledger entry updated successfully!';
@@ -71,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Get filter parameters
-$filter_tenant = $_GET['tenant_id'] ?? '';
+$filter_customer = $_GET['customer_id'] ?? '';
 $filter_status = $_GET['status'] ?? '';
 $filter_type = $_GET['type'] ?? '';
 
@@ -79,9 +79,9 @@ $where_clauses = [];
 $params = [];
 $types = '';
 
-if ($filter_tenant) {
-    $where_clauses[] = "l.tenant_id = ?";
-    $params[] = $filter_tenant;
+if ($filter_customer) {
+    $where_clauses[] = "l.customer_id = ?";
+    $params[] = $filter_customer;
     $types .= 'i';
 }
 
@@ -99,8 +99,8 @@ if ($filter_type) {
 
 $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
 
-$query = "SELECT l.*, u.full_name as tenant_name, a.agreement_number FROM ledger l 
-          JOIN users u ON l.tenant_id = u.user_id 
+$query = "SELECT l.*, c.full_name as customer_name, a.agreement_number FROM ledger l 
+          JOIN customers c ON l.customer_id = c.customer_id 
           LEFT JOIN agreements a ON l.agreement_id = a.agreement_id 
           $where_sql ORDER BY l.created_at DESC";
 
@@ -111,24 +111,48 @@ if (!empty($params)) {
 $stmt->execute();
 $ledger_entries = $stmt->get_result();
 
-// Get totals
+// Get totals - fix WHERE clause to use proper column names without alias
+$total_where_clauses = [];
+$total_params = [];
+$total_types = '';
+
+if ($filter_customer) {
+    $total_where_clauses[] = "customer_id = ?";
+    $total_params[] = $filter_customer;
+    $total_types .= 'i';
+}
+
+if ($filter_status) {
+    $total_where_clauses[] = "status = ?";
+    $total_params[] = $filter_status;
+    $total_types .= 's';
+}
+
+if ($filter_type) {
+    $total_where_clauses[] = "transaction_type = ?";
+    $total_params[] = $filter_type;
+    $total_types .= 's';
+}
+
+$total_where_sql = !empty($total_where_clauses) ? 'WHERE ' . implode(' AND ', $total_where_clauses) : '';
+
 $total_query = "SELECT 
     SUM(CASE WHEN transaction_type IN ('rent', 'service_charge') THEN amount ELSE 0 END) as total_income,
     SUM(CASE WHEN transaction_type = 'maintenance' THEN amount ELSE 0 END) as total_expenses,
     SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END) as total_paid,
     SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END) as total_pending,
     SUM(CASE WHEN status = 'overdue' THEN amount ELSE 0 END) as total_overdue
-    FROM ledger $where_sql";
+    FROM ledger $total_where_sql";
 
 $total_stmt = $conn->prepare($total_query);
-if (!empty($params)) {
-    $total_stmt->bind_param($types, ...$params);
+if (!empty($total_params)) {
+    $total_stmt->bind_param($total_types, ...$total_params);
 }
 $total_stmt->execute();
 $totals = $total_stmt->get_result()->fetch_assoc();
 
-$tenants = $conn->query("SELECT user_id, full_name, username FROM users WHERE user_type = 'tenant' ORDER BY full_name");
-$agreements = $conn->query("SELECT agreement_id, agreement_number, tenant_id FROM agreements ORDER BY agreement_number");
+$customers = $conn->query("SELECT customer_id, full_name, phone FROM customers WHERE status = 'active' ORDER BY full_name");
+$agreements = $conn->query("SELECT agreement_id, agreement_number, customer_id FROM agreements ORDER BY agreement_number");
 
 $page_title = 'Ledger Management - Plaza Management System';
 include '../includes/header.php';
@@ -182,17 +206,17 @@ include '../includes/header.php';
     <form method="GET" style="margin-bottom: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: end;">
         <div class="form-group" style="flex: 1; min-width: 200px;">
                 <label class="form-label">Filter by Customer</label>
-                <select class="form-control" name="tenant_id">
+                <select class="form-control" name="customer_id">
                     <option value="">All Customers</option>
-                <?php 
-                $tenants->data_seek(0);
-                while ($tenant = $tenants->fetch_assoc()): 
-                ?>
-                    <option value="<?php echo $tenant['user_id']; ?>" <?php echo $filter_tenant == $tenant['user_id'] ? 'selected' : ''; ?>>
-                        <?php echo htmlspecialchars($tenant['full_name']); ?>
-                    </option>
-                <?php endwhile; ?>
-            </select>
+                    <?php 
+                    $customers->data_seek(0);
+                    while ($customer = $customers->fetch_assoc()): 
+                    ?>
+                        <option value="<?php echo $customer['customer_id']; ?>" <?php echo $filter_customer == $customer['customer_id'] ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($customer['full_name']); ?>
+                        </option>
+                    <?php endwhile; ?>
+                </select>
         </div>
         <div class="form-group" style="flex: 1; min-width: 150px;">
             <label class="form-label">Filter by Status</label>
@@ -239,7 +263,7 @@ include '../includes/header.php';
                     <?php while ($entry = $ledger_entries->fetch_assoc()): ?>
                         <tr>
                             <td><?php echo formatDate($entry['payment_date']); ?></td>
-                            <td><?php echo htmlspecialchars($entry['tenant_name']); ?></td>
+                            <td><?php echo htmlspecialchars($entry['customer_name']); ?></td>
                             <td><?php echo htmlspecialchars($entry['agreement_number'] ?? '-'); ?></td>
                             <td><span class="badge badge-info"><?php echo ucfirst(str_replace('_', ' ', $entry['transaction_type'])); ?></span></td>
                             <td><?php echo formatCurrency($entry['amount']); ?></td>
@@ -292,14 +316,14 @@ include '../includes/header.php';
             
             <div class="form-group">
                 <label class="form-label">Customer *</label>
-                <select class="form-control" name="tenant_id" id="tenant_id" required onchange="updateAgreements()">
+                <select class="form-control" name="customer_id" id="customer_id" required onchange="updateAgreements()">
                     <option value="">Select Customer</option>
                     <?php 
-                    $tenants->data_seek(0);
-                    while ($tenant = $tenants->fetch_assoc()): 
+                    $customers->data_seek(0);
+                    while ($customer = $customers->fetch_assoc()): 
                     ?>
-                        <option value="<?php echo $tenant['user_id']; ?>">
-                            <?php echo htmlspecialchars($tenant['full_name'] . ' (' . $tenant['username'] . ')'); ?>
+                        <option value="<?php echo $customer['customer_id']; ?>">
+                            <?php echo htmlspecialchars($customer['full_name'] . ' (' . $customer['phone'] . ')'); ?>
                         </option>
                     <?php endwhile; ?>
                 </select>
@@ -379,11 +403,11 @@ include '../includes/header.php';
 const agreements = <?php echo json_encode($agreements->fetch_all(MYSQLI_ASSOC)); ?>;
 
 function updateAgreements() {
-    const tenantId = document.getElementById('tenant_id').value;
+    const customerId = document.getElementById('customer_id').value;
     const agreementSelect = document.getElementById('agreement_id');
     agreementSelect.innerHTML = '<option value="">Select Agreement</option>';
     
-    agreements.filter(a => a.tenant_id == tenantId).forEach(agreement => {
+    agreements.filter(a => a.customer_id == customerId).forEach(agreement => {
         const opt = document.createElement('option');
         opt.value = agreement.agreement_id;
         opt.textContent = agreement.agreement_number;
@@ -402,7 +426,7 @@ function closeModal() {
 function editLedger(entry) {
     document.getElementById('formAction').value = 'update';
     document.getElementById('ledger_id').value = entry.ledger_id;
-    document.getElementById('tenant_id').value = entry.tenant_id;
+    document.getElementById('customer_id').value = entry.customer_id;
     updateAgreements();
     setTimeout(() => {
         document.getElementById('agreement_id').value = entry.agreement_id || '';

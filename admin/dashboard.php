@@ -106,66 +106,62 @@ include '../includes/header.php';
 </div>
 
 <div class="stats-grid">
-    <div class="stat-card">
-        <i class="fas fa-store stat-icon"></i>
-        <div class="stat-value"><?php echo $stats['total_shops']; ?></div>
-        <div class="stat-label">Total Shops</div>
-        <div style="margin-top: 0.5rem; color: var(--text-light); font-size: 0.875rem;">
-            <?php echo $stats['occupied_shops']; ?> Occupied
+    <a href="settings.php?tab=shops" class="stat-card-link">
+        <div class="stat-card">
+            <i class="fas fa-store stat-icon"></i>
+            <div class="stat-value"><?php echo $stats['total_shops']; ?></div>
+            <div class="stat-label">Total Shops</div>
+            <div style="margin-top: 0.25rem; color: var(--text-light); font-size: 0.75rem;">
+                <?php echo $stats['occupied_shops']; ?> Occupied
+            </div>
         </div>
-    </div>
+    </a>
 
-    <div class="stat-card">
-        <i class="fas fa-door-open stat-icon"></i>
-        <div class="stat-value"><?php echo $stats['total_rooms']; ?></div>
-        <div class="stat-label">Total Rooms</div>
-        <div style="margin-top: 0.5rem; color: var(--text-light); font-size: 0.875rem;">
-            <?php echo $stats['occupied_rooms']; ?> Occupied
+    <a href="settings.php?tab=rooms" class="stat-card-link">
+        <div class="stat-card">
+            <i class="fas fa-door-open stat-icon"></i>
+            <div class="stat-value"><?php echo $stats['total_rooms']; ?></div>
+            <div class="stat-label">Total Rooms</div>
+            <div style="margin-top: 0.25rem; color: var(--text-light); font-size: 0.75rem;">
+                <?php echo $stats['occupied_rooms']; ?> Occupied
+            </div>
         </div>
-    </div>
+    </a>
 
-    <div class="stat-card">
-        <i class="fas fa-layer-group stat-icon"></i>
-        <div class="stat-value"><?php echo $stats['total_basements']; ?></div>
-        <div class="stat-label">Total Basements</div>
-        <div style="margin-top: 0.5rem; color: var(--text-light); font-size: 0.875rem;">
-            <?php echo $stats['occupied_basements']; ?> Occupied
+    <a href="settings.php?tab=basements" class="stat-card-link">
+        <div class="stat-card">
+            <i class="fas fa-layer-group stat-icon"></i>
+            <div class="stat-value"><?php echo $stats['total_basements']; ?></div>
+            <div class="stat-label">Total Basements</div>
+            <div style="margin-top: 0.25rem; color: var(--text-light); font-size: 0.75rem;">
+                <?php echo $stats['occupied_basements']; ?> Occupied
+            </div>
         </div>
-    </div>
+    </a>
 
-    <div class="stat-card success">
-        <i class="fas fa-users stat-icon"></i>
-        <div class="stat-value"><?php echo $stats['total_customers']; ?></div>
-        <div class="stat-label">Total Customers</div>
-    </div>
+    <a href="customers.php" class="stat-card-link">
+        <div class="stat-card success">
+            <i class="fas fa-users stat-icon"></i>
+            <div class="stat-value"><?php echo $stats['total_customers']; ?></div>
+            <div class="stat-label">Total Customers</div>
+        </div>
+    </a>
 
-    <?php /*
-    <div class="stat-card success">
-        <i class="fas fa-file-contract stat-icon"></i>
-        <div class="stat-value"><?php echo $stats['active_agreements']; ?></div>
-        <div class="stat-label">Active Agreements</div>
-    </div>
-    */ ?>
+    <a href="assigned-spaces.php" class="stat-card-link">
+        <div class="stat-card success">
+            <i class="fas fa-dollar-sign stat-icon"></i>
+            <div class="stat-value"><?php echo formatCurrency($stats['monthly_revenue']); ?></div>
+            <div class="stat-label">Monthly Revenue</div>
+        </div>
+    </a>
 
-    <div class="stat-card success">
-        <i class="fas fa-dollar-sign stat-icon"></i>
-        <div class="stat-value"><?php echo formatCurrency($stats['monthly_revenue']); ?></div>
-        <div class="stat-label">Monthly Revenue</div>
-    </div>
-
-    <div class="stat-card warning">
-        <i class="fas fa-exclamation-triangle stat-icon"></i>
-        <div class="stat-value"><?php echo formatCurrency($stats['pending_payments']); ?></div>
-        <div class="stat-label">Pending Payments</div>
-    </div>
-
-    <?php /*
-    <div class="stat-card danger">
-        <i class="fas fa-tools stat-icon"></i>
-        <div class="stat-value"><?php echo $stats['pending_maintenance']; ?></div>
-        <div class="stat-label">Pending Maintenance</div>
-    </div>
-    */ ?>
+    <a href="ledger.php?status=pending" class="stat-card-link">
+        <div class="stat-card warning">
+            <i class="fas fa-exclamation-triangle stat-icon"></i>
+            <div class="stat-value"><?php echo formatCurrency($stats['pending_payments']); ?></div>
+            <div class="stat-label">Pending Payments</div>
+        </div>
+    </a>
 </div>
 
 <!-- Charts Section -->

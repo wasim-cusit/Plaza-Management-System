@@ -138,8 +138,8 @@ include '../includes/header.php';
     <?php endif; ?>
 
     <div class="table-container" style="flex: 1; overflow: auto; min-height: 0; position: relative;">
-        <table class="table" style="min-width: 1400px; width: 100%; margin: 0;">
-            <thead style="position: sticky; top: 0; background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); color: white; z-index: 10; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+        <table class="table" style="min-width: 1400px; width: 100%; margin: 0; border-collapse: separate; border-spacing: 0;">
+            <thead>
                 <tr>
                     <th style="min-width: 100px; color: white; font-weight: 600; padding: 1rem 0.75rem; border-bottom: 2px solid rgba(255,255,255,0.2);">Space Type</th>
                     <th style="min-width: 120px; color: white; font-weight: 600; padding: 1rem 0.75rem; border-bottom: 2px solid rgba(255,255,255,0.2);">Space Number</th>
@@ -153,7 +153,7 @@ include '../includes/header.php';
                     <th style="min-width: 120px; color: white; font-weight: 600; padding: 1rem 0.75rem; border-bottom: 2px solid rgba(255,255,255,0.2);">Monthly Rent</th>
                     <th style="min-width: 130px; color: white; font-weight: 600; padding: 1rem 0.75rem; border-bottom: 2px solid rgba(255,255,255,0.2);">Security Deposit</th>
                     <th style="min-width: 100px; color: white; font-weight: 600; padding: 1rem 0.75rem; border-bottom: 2px solid rgba(255,255,255,0.2);">Status</th>
-                    <th style="min-width: 200px; position: sticky; right: 0; background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); color: white; font-weight: 600; padding: 1rem 0.75rem; border-bottom: 2px solid rgba(255,255,255,0.2); z-index: 9;">Actions</th>
+                    <th style="min-width: 200px; color: white; font-weight: 600; padding: 1rem 0.75rem; border-bottom: 2px solid rgba(255,255,255,0.2);">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -200,7 +200,7 @@ include '../includes/header.php';
                                     <?php echo ucfirst($space['agreement_status'] ?: 'N/A'); ?>
                                 </span>
                             </td>
-                            <td style="position: sticky; right: 0; background: white; z-index: 8; box-shadow: -2px 0 4px rgba(0,0,0,0.1);">
+                            <td>
                                 <div class="action-buttons" style="display: flex; gap: 0.25rem; flex-wrap: nowrap; white-space: nowrap;">
                                     <button class="btn btn-sm btn-primary" onclick="editAssignment(<?php echo htmlspecialchars(json_encode($space)); ?>)" title="Edit">
                                         <i class="fas fa-edit"></i>
@@ -382,6 +382,16 @@ window.onclick = function(event) {
     height: 100%;
 }
 
+/* Table header sticky */
+.table-container thead {
+    position: sticky;
+    top: 0;
+    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    color: white;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
 .table-container table {
     margin: 0;
     border-collapse: separate;
@@ -408,6 +418,7 @@ window.onclick = function(event) {
 .table-container tbody tr:hover td {
     background: var(--light-color);
 }
+
 
 .table-container tbody tr:last-child td {
     border-bottom: none;

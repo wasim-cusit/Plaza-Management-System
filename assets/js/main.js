@@ -110,9 +110,38 @@ function formatCurrencyInput(input) {
     });
 }
 
-// Initialize currency inputs
-document.addEventListener('DOMContentLoaded', function() {
-    const currencyInputs = document.querySelectorAll('input[type="number"][data-currency]');
-    currencyInputs.forEach(input => formatCurrencyInput(input));
-});
+    // Initialize currency inputs
+    document.addEventListener('DOMContentLoaded', function() {
+        const currencyInputs = document.querySelectorAll('input[type="number"][data-currency]');
+        currencyInputs.forEach(input => formatCurrencyInput(input));
+    });
+
+    // User dropdown menu toggle
+    const userInfoHeader = document.getElementById('userInfoHeader');
+    const userDropdownMenu = document.getElementById('userDropdownMenu');
+    
+    if (userInfoHeader && userDropdownMenu) {
+        userInfoHeader.addEventListener('click', function(e) {
+            e.stopPropagation();
+            userInfoHeader.classList.toggle('active');
+            userDropdownMenu.classList.toggle('active');
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!userInfoHeader.contains(e.target) && !userDropdownMenu.contains(e.target)) {
+                userInfoHeader.classList.remove('active');
+                userDropdownMenu.classList.remove('active');
+            }
+        });
+        
+        // Close dropdown when clicking on a dropdown item
+        const dropdownItems = userDropdownMenu.querySelectorAll('.dropdown-item');
+        dropdownItems.forEach(item => {
+            item.addEventListener('click', function() {
+                userInfoHeader.classList.remove('active');
+                userDropdownMenu.classList.remove('active');
+            });
+        });
+    }
 
