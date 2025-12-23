@@ -63,7 +63,7 @@ function requireTenant() {
 }
 
 function formatCurrency($amount) {
-    return '$' . number_format($amount, 2);
+    return 'Rs ' . number_format($amount, 2);
 }
 
 function formatDate($date) {

@@ -4,7 +4,7 @@
 CREATE DATABASE IF NOT EXISTS plaza_ms;
 USE plaza_ms;
 
--- Users table (Admin and Tenant)
+-- Users table (System Users - Admin only for login)
 CREATE TABLE users (
     user_id INT PRIMARY KEY AUTO_INCREMENT,
     username VARCHAR(50) UNIQUE NOT NULL,
@@ -13,8 +13,31 @@ CREATE TABLE users (
     full_name VARCHAR(100) NOT NULL,
     phone VARCHAR(20),
     address TEXT,
-    user_type ENUM('admin', 'tenant') NOT NULL DEFAULT 'tenant',
+    user_type ENUM('admin', 'tenant') NOT NULL DEFAULT 'admin',
     status ENUM('active', 'inactive') DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Customers table (Plaza Clients - Not system users)
+CREATE TABLE customers (
+    customer_id INT PRIMARY KEY AUTO_INCREMENT,
+    full_name VARCHAR(100) NOT NULL,
+    gender ENUM('male', 'female', 'other') NOT NULL,
+    email VARCHAR(100),
+    phone VARCHAR(20) NOT NULL,
+    alternate_phone VARCHAR(20),
+    cnic VARCHAR(20) UNIQUE,
+    address TEXT,
+    city VARCHAR(50),
+    country VARCHAR(50) DEFAULT 'Pakistan',
+    occupation VARCHAR(100),
+    emergency_contact_name VARCHAR(100),
+    emergency_contact_phone VARCHAR(20),
+    reference_name VARCHAR(100),
+    reference_phone VARCHAR(20),
+    status ENUM('active', 'inactive') DEFAULT 'active',
+    notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -29,10 +52,10 @@ CREATE TABLE shops (
     monthly_rent DECIMAL(10,2) NOT NULL,
     status ENUM('available', 'occupied', 'maintenance') DEFAULT 'available',
     description TEXT,
-    tenant_id INT,
+    customer_id INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (tenant_id) REFERENCES users(user_id) ON DELETE SET NULL
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE SET NULL
 );
 
 -- Rooms table
@@ -45,10 +68,10 @@ CREATE TABLE rooms (
     monthly_rent DECIMAL(10,2) NOT NULL,
     status ENUM('available', 'occupied', 'maintenance') DEFAULT 'available',
     description TEXT,
-    tenant_id INT,
+    customer_id INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (tenant_id) REFERENCES users(user_id) ON DELETE SET NULL
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE SET NULL
 );
 
 -- Basements table
@@ -61,17 +84,17 @@ CREATE TABLE basements (
     space_type ENUM('parking', 'storage', 'other') DEFAULT 'parking',
     status ENUM('available', 'occupied', 'maintenance') DEFAULT 'available',
     description TEXT,
-    tenant_id INT,
+    customer_id INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (tenant_id) REFERENCES users(user_id) ON DELETE SET NULL
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE SET NULL
 );
 
 -- Agreements table (Lease Agreements)
 CREATE TABLE agreements (
     agreement_id INT PRIMARY KEY AUTO_INCREMENT,
     agreement_number VARCHAR(50) UNIQUE NOT NULL,
-    tenant_id INT NOT NULL,
+    customer_id INT NOT NULL,
     space_type ENUM('shop', 'room', 'basement') NOT NULL,
     space_id INT NOT NULL,
     start_date DATE NOT NULL,
@@ -83,13 +106,13 @@ CREATE TABLE agreements (
     document_file VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (tenant_id) REFERENCES users(user_id) ON DELETE CASCADE
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE CASCADE
 );
 
 -- Ledger table (Financial transactions)
 CREATE TABLE ledger (
     ledger_id INT PRIMARY KEY AUTO_INCREMENT,
-    tenant_id INT NOT NULL,
+    customer_id INT NOT NULL,
     agreement_id INT,
     transaction_type ENUM('rent', 'maintenance', 'service_charge', 'deposit', 'refund', 'other') NOT NULL,
     amount DECIMAL(10,2) NOT NULL,
@@ -100,14 +123,14 @@ CREATE TABLE ledger (
     invoice_number VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (tenant_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE CASCADE,
     FOREIGN KEY (agreement_id) REFERENCES agreements(agreement_id) ON DELETE SET NULL
 );
 
 -- Payments table
 CREATE TABLE payments (
     payment_id INT PRIMARY KEY AUTO_INCREMENT,
-    tenant_id INT NOT NULL,
+    customer_id INT NOT NULL,
     agreement_id INT,
     ledger_id INT,
     amount DECIMAL(10,2) NOT NULL,
@@ -119,7 +142,7 @@ CREATE TABLE payments (
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (tenant_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE CASCADE,
     FOREIGN KEY (agreement_id) REFERENCES agreements(agreement_id) ON DELETE SET NULL,
     FOREIGN KEY (ledger_id) REFERENCES ledger(ledger_id) ON DELETE SET NULL
 );
@@ -127,7 +150,7 @@ CREATE TABLE payments (
 -- Maintenance requests table
 CREATE TABLE maintenance_requests (
     request_id INT PRIMARY KEY AUTO_INCREMENT,
-    tenant_id INT NOT NULL,
+    customer_id INT NOT NULL,
     space_type ENUM('shop', 'room', 'basement') NOT NULL,
     space_id INT NOT NULL,
     issue_type VARCHAR(50),
@@ -140,7 +163,7 @@ CREATE TABLE maintenance_requests (
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (tenant_id) REFERENCES users(user_id) ON DELETE CASCADE
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE CASCADE
 );
 
 -- Notifications table

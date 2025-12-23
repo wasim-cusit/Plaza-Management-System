@@ -123,14 +123,14 @@ include '../includes/header.php';
                             </td>
                             <td>
                                 <div class="action-buttons">
-                                    <button class="btn btn-sm btn-primary" onclick="editBasement(<?php echo htmlspecialchars(json_encode($basement)); ?>)">
-                                        <i class="fas fa-edit"></i> Edit
+                                    <button class="btn btn-sm btn-primary" onclick="editBasement(<?php echo htmlspecialchars(json_encode($basement)); ?>)" title="Edit">
+                                        <i class="fas fa-edit"></i>
                                     </button>
                                     <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure?');">
                                         <input type="hidden" name="action" value="delete">
                                         <input type="hidden" name="basement_id" value="<?php echo $basement['basement_id']; ?>">
-                                        <button type="submit" class="btn btn-sm btn-danger">
-                                            <i class="fas fa-trash"></i> Delete
+                                        <button type="submit" class="btn btn-sm btn-danger" title="Delete">
+                                            <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
                                 </div>

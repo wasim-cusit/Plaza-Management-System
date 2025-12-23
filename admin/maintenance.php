@@ -136,8 +136,8 @@ include '../includes/header.php';
                                     <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure?');">
                                         <input type="hidden" name="action" value="delete">
                                         <input type="hidden" name="request_id" value="<?php echo $request['request_id']; ?>">
-                                        <button type="submit" class="btn btn-sm btn-danger">
-                                            <i class="fas fa-trash"></i> Delete
+                                        <button type="submit" class="btn btn-sm btn-danger" title="Delete">
+                                            <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
                                 </div>

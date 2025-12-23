@@ -169,16 +169,16 @@ include '../includes/header.php';
                             </td>
                             <td>
                                 <?php if ($payment['receipt_file']): ?>
-                                    <a href="<?php echo BASE_URL; ?>uploads/receipts/<?php echo htmlspecialchars($payment['receipt_file']); ?>" target="_blank" class="btn btn-sm btn-primary">
-                                        <i class="fas fa-download"></i> View
+                                    <a href="<?php echo BASE_URL; ?>uploads/receipts/<?php echo htmlspecialchars($payment['receipt_file']); ?>" target="_blank" class="btn btn-sm btn-primary" title="View Receipt">
+                                        <i class="fas fa-download"></i>
                                     </a>
                                 <?php else: ?>
                                     <span style="color: var(--text-light);">-</span>
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <button class="btn btn-sm btn-primary" onclick="editPayment(<?php echo htmlspecialchars(json_encode($payment)); ?>)">
-                                    <i class="fas fa-edit"></i> Edit
+                                <button class="btn btn-sm btn-primary" onclick="editPayment(<?php echo htmlspecialchars(json_encode($payment)); ?>)" title="Edit">
+                                    <i class="fas fa-edit"></i>
                                 </button>
                             </td>
                         </tr>

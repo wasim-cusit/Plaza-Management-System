@@ -41,64 +41,64 @@ if (isLoggedIn()) {
             <nav class="sidebar-nav">
                 <ul class="sidebar-menu">
                     <?php if (isAdmin()): ?>
+                        <?php 
+                        $current_page = basename($_SERVER['PHP_SELF']);
+                        $current_path = $_SERVER['PHP_SELF'];
+                        ?>
                         <li>
-                            <a href="<?php echo BASE_URL; ?>admin/dashboard.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'dashboard.php' && strpos($_SERVER['PHP_SELF'], 'admin') !== false) ? 'active' : ''; ?>">
+                            <a href="<?php echo BASE_URL; ?>admin/dashboard.php" class="<?php echo ($current_page == 'dashboard.php' && strpos($current_path, 'admin') !== false) ? 'active' : ''; ?>">
                                 <i class="fas fa-home"></i>
                                 <span>Dashboard</span>
                             </a>
                         </li>
                         <li>
-                            <a href="<?php echo BASE_URL; ?>admin/shops.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'shops.php') ? 'active' : ''; ?>">
-                                <i class="fas fa-store"></i>
-                                <span>Shops</span>
+                            <a href="<?php echo BASE_URL; ?>admin/spaces.php" class="<?php echo (in_array($current_page, ['spaces.php', 'assign-space.php', 'unassign-space.php'])) ? 'active' : ''; ?>">
+                                <i class="fas fa-building"></i>
+                                <span>Spaces</span>
                             </a>
                         </li>
                         <li>
-                            <a href="<?php echo BASE_URL; ?>admin/rooms.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'rooms.php') ? 'active' : ''; ?>">
-                                <i class="fas fa-door-open"></i>
-                                <span>Rooms</span>
+                            <a href="<?php echo BASE_URL; ?>admin/assigned-spaces.php" class="<?php echo ($current_page == 'assigned-spaces.php' || $current_page == 'update-assignment.php') ? 'active' : ''; ?>">
+                                <i class="fas fa-list"></i>
+                                <span>Assigned Spaces</span>
                             </a>
                         </li>
                         <li>
-                            <a href="<?php echo BASE_URL; ?>admin/basements.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'basements.php') ? 'active' : ''; ?>">
-                                <i class="fas fa-layer-group"></i>
-                                <span>Basements</span>
+                            <a href="<?php echo BASE_URL; ?>admin/customers.php" class="<?php echo (in_array($current_page, ['customers.php', 'customer-details.php', 'tenants.php'])) ? 'active' : ''; ?>">
+                                <i class="fas fa-users"></i>
+                                <span>Customers</span>
                             </a>
                         </li>
                         <li>
-                            <a href="<?php echo BASE_URL; ?>admin/agreements.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'agreements.php') ? 'active' : ''; ?>">
-                                <i class="fas fa-file-contract"></i>
-                                <span>Agreements</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="<?php echo BASE_URL; ?>admin/ledger.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'ledger.php') ? 'active' : ''; ?>">
+                            <a href="<?php echo BASE_URL; ?>admin/ledger.php" class="<?php echo ($current_page == 'ledger.php') ? 'active' : ''; ?>">
                                 <i class="fas fa-book"></i>
                                 <span>Ledger</span>
                             </a>
                         </li>
                         <li>
-                            <a href="<?php echo BASE_URL; ?>admin/payments.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'payments.php') ? 'active' : ''; ?>">
+                            <a href="<?php echo BASE_URL; ?>admin/payments.php" class="<?php echo ($current_page == 'payments.php') ? 'active' : ''; ?>">
                                 <i class="fas fa-money-bill-wave"></i>
                                 <span>Payments</span>
                             </a>
                         </li>
+                        <?php /*
                         <li>
-                            <a href="<?php echo BASE_URL; ?>admin/maintenance.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'maintenance.php') ? 'active' : ''; ?>">
+                            <a href="<?php echo BASE_URL; ?>admin/maintenance.php" class="<?php echo ($current_page == 'maintenance.php') ? 'active' : ''; ?>">
                                 <i class="fas fa-tools"></i>
                                 <span>Maintenance</span>
                             </a>
                         </li>
+                        */ ?>
                         <li>
-                            <a href="<?php echo BASE_URL; ?>admin/reports.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'reports.php') ? 'active' : ''; ?>">
+                            <a href="<?php echo BASE_URL; ?>admin/reports.php" class="<?php echo ($current_page == 'reports.php') ? 'active' : ''; ?>">
                                 <i class="fas fa-chart-bar"></i>
                                 <span>Reports</span>
                             </a>
                         </li>
                         <li>
-                            <a href="<?php echo BASE_URL; ?>admin/tenants.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'tenants.php') ? 'active' : ''; ?>">
-                                <i class="fas fa-users"></i>
-                                <span>Customers</span>
+                            <a href="<?php echo BASE_URL; ?>admin/settings.php" class="<?php echo ($current_page == 'settings.php') ? 'active' : ''; ?>">
+                                <i class="fas fa-cog"></i>
+                                <span>Settings</span>
                             </a>
                         </li>
                     <?php else: ?>

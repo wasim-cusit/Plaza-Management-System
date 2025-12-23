@@ -123,14 +123,14 @@ include '../includes/header.php';
                             </td>
                             <td>
                                 <div class="action-buttons">
-                                    <button class="btn btn-sm btn-primary" onclick="editRoom(<?php echo htmlspecialchars(json_encode($room)); ?>)">
-                                        <i class="fas fa-edit"></i> Edit
+                                    <button class="btn btn-sm btn-primary" onclick="editRoom(<?php echo htmlspecialchars(json_encode($room)); ?>)" title="Edit">
+                                        <i class="fas fa-edit"></i>
                                     </button>
                                     <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure?');">
                                         <input type="hidden" name="action" value="delete">
                                         <input type="hidden" name="room_id" value="<?php echo $room['room_id']; ?>">
-                                        <button type="submit" class="btn btn-sm btn-danger">
-                                            <i class="fas fa-trash"></i> Delete
+                                        <button type="submit" class="btn btn-sm btn-danger" title="Delete">
+                                            <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
                                 </div>
