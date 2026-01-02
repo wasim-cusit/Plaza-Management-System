@@ -27,6 +27,7 @@ body {
     background-color: var(--light-color);
     color: var(--text-color);
     line-height: 1.6;
+    overflow-x: hidden;
 }
 
 /* Sidebar Layout */
@@ -194,6 +195,8 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 /* Top Header */
@@ -361,6 +364,8 @@ body {
     max-width: 1400px;
     width: 100%;
     margin: 0 auto;
+    overflow-x: hidden;
+    box-sizing: border-box;
 }
 
 /* Navigation (for public pages) */
@@ -470,6 +475,18 @@ body {
     padding: 1.5rem;
     box-shadow: var(--shadow);
     margin-bottom: 1.5rem;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+.card > .table-container {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
 }
 
 .card-header {
@@ -602,6 +619,11 @@ select.form-control {
     background: white;
     position: relative;
     max-height: calc(100vh - 300px);
+    width: 100%;
+    max-width: 100%;
+    display: block;
+    flex: 1;
+    min-height: 0;
 }
 
 .table-container::-webkit-scrollbar {
@@ -625,10 +647,12 @@ select.form-control {
 
 .table {
     width: 100%;
+    min-width: 800px;
     border-collapse: separate;
     border-spacing: 0;
     background: white;
     margin: 0;
+    table-layout: auto;
 }
 
 .table thead {

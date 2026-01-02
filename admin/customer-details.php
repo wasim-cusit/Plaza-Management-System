@@ -61,6 +61,11 @@ $summary = $conn->query("SELECT
     SUM(CASE WHEN status = 'overdue' THEN amount ELSE 0 END) as total_overdue
     FROM ledger WHERE customer_id = $customer_id")->fetch_assoc();
 
+// Calculate total security deposit from agreements
+$security_deposit_result = $conn->query("SELECT SUM(security_deposit) as total_security_deposit FROM agreements WHERE customer_id = $customer_id");
+$security_deposit_data = $security_deposit_result->fetch_assoc();
+$total_security_deposit = $security_deposit_data['total_security_deposit'] ?? 0;
+
 $page_title = 'Customer Details - ' . htmlspecialchars($customer['full_name']);
 include '../includes/header.php';
 ?>
@@ -69,17 +74,23 @@ include '../includes/header.php';
     <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
         <div>
             <h1 class="card-title"><i class="fas fa-user"></i> Customer Details</h1>
-            <p style="margin: 0.5rem 0 0 0; color: var(--text-light);">
+            <p style="margin: 0.5rem 0 0 0; color: var(--text-light);" class="no-print">
                 <a href="customers.php" style="color: var(--primary-color); text-decoration: none;">
                     <i class="fas fa-arrow-left"></i> Back to Customers
                 </a>
             </p>
         </div>
-        <div>
+        <div class="no-print">
             <button class="btn btn-primary" onclick="window.print()">
                 <i class="fas fa-print"></i> Print
             </button>
         </div>
+    </div>
+    
+    <!-- Print Header (only visible when printing) -->
+    <div class="print-header" style="display: none;">
+        <h1>Customer Details Report</h1>
+        <p>Customer: <?php echo htmlspecialchars($customer['full_name']); ?> | Generated on <?php echo date('d/m/Y H:i'); ?></p>
     </div>
 
     <?php if ($message): ?>
@@ -123,6 +134,7 @@ include '../includes/header.php';
         <div class="card" style="margin: 0;">
             <h3 style="margin-bottom: 1rem; color: var(--primary-color);">Financial Summary</h3>
             <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <div><strong>Security Deposit:</strong> <span style="color: var(--primary-color); font-weight: bold;"><?php echo formatCurrency($total_security_deposit); ?></span></div>
                 <div><strong>Total Paid:</strong> <span style="color: var(--success-color); font-weight: bold;"><?php echo formatCurrency($summary['total_paid'] ?? 0); ?></span></div>
                 <div><strong>Pending:</strong> <span style="color: var(--warning-color); font-weight: bold;"><?php echo formatCurrency($summary['total_pending'] ?? 0); ?></span></div>
                 <div><strong>Overdue:</strong> <span style="color: var(--danger-color); font-weight: bold;"><?php echo formatCurrency($summary['total_overdue'] ?? 0); ?></span></div>
@@ -338,19 +350,429 @@ include '../includes/header.php';
 
 <style>
 @media print {
-    .card-header button,
-    .action-buttons,
-    nav,
-    .sidebar,
-    .top-header button {
+    @page {
+        size: A4;
+        margin: 0.5cm;
+    }
+    
+    /* Prevent empty first page */
+    html, body {
+        height: auto !important;
+        overflow: visible !important;
+    }
+    
+    * {
+        margin: 0;
+        padding: 0;
+    }
+    
+    body {
+        background: white !important;
+        font-size: 9px;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    
+    /* Remove top margin from first element */
+    .card:first-child,
+    .print-header + *,
+    .customer-info-section:first-child {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+    }
+    
+    /* Ensure content starts immediately after header */
+    .print-header ~ .customer-info-section,
+    .print-header ~ .card {
+        margin-top: 0.4rem !important;
+    }
+    
+    /* Hide empty alert in print */
+    .alert {
         display: none !important;
     }
     
+    /* Remove any top padding from main container */
+    .main-content > .card {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+    }
+    
+    /* Ensure first visible element has proper spacing */
+    .print-header + * {
+        margin-top: 0.4rem !important;
+        padding-top: 0 !important;
+    }
+    
+    /* Prevent page breaks right after header */
+    .print-header {
+        page-break-after: avoid;
+    }
+    
+    .print-header + .customer-info-section {
+        page-break-before: avoid;
+    }
+    
+    /* Remove all top margins from body and first elements */
+    body > div:first-child,
+    .main-content:first-child,
+    .app-container:first-child,
+    .main-content > div:first-child {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+    }
+    
+    /* Ensure print header is at the very top */
+    .print-header {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+        position: relative !important;
+    }
+    
+    /* Ensure no empty space before content */
+    .card:has(.card-header) + .print-header,
+    .print-header:first-child {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+    }
+    
+    /* Hide navigation and UI elements */
+    .sidebar,
+    .top-header,
+    .mobile-overlay,
+    .card-header button,
+    .action-buttons,
+    nav,
+    .alert,
+    .no-print,
+    .footer {
+        display: none !important;
+    }
+    
+    /* Adjust layout for print */
+    .main-content {
+        margin-left: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+    }
+    
+    .app-container {
+        display: block !important;
+        width: 100% !important;
+    }
+    
+    /* Print header - professional and compact - at top of page */
+    .print-header {
+        display: block !important;
+        position: relative !important;
+        text-align: center;
+        margin: 0 0 0.5rem 0 !important;
+        padding: 0.2rem 0 0.2rem 0 !important;
+        border-bottom: 2px solid #2563eb;
+        page-break-after: avoid;
+        page-break-inside: avoid;
+        height: auto !important;
+        min-height: auto !important;
+        max-height: 1.8cm !important;
+    }
+    
+    .print-header h1 {
+        font-size: 0.95rem;
+        color: #2563eb;
+        margin: 0 0 0.1rem 0;
+        padding: 0;
+        font-weight: bold;
+    }
+    
+    .print-header p {
+        font-size: 0.65rem;
+        color: #6b7280;
+        margin: 0;
+        padding: 0;
+    }
+    
+    /* Convert everything to simple table format */
     .card {
         page-break-inside: avoid;
+        break-inside: avoid;
+        margin-top: 0;
+        margin-bottom: 0.5rem;
+        border: none;
+        padding: 0;
+        box-shadow: none;
+        background: white;
+    }
+    
+    .card:first-of-type,
+    .print-header ~ * .card:first-of-type {
+        margin-top: 0.4rem !important;
+    }
+    
+    /* Main card container */
+    .card:has(.card-header) {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+        border: none;
+        padding: 0;
+    }
+    
+    /* Ensure first content element has no top margin */
+    .print-header + .customer-info-section,
+    .print-header + * {
+        margin-top: 0.4rem !important;
+    }
+    
+    .card-header {
+        display: none !important;
+    }
+    
+    /* Convert info cards to tables - side by side */
+    div[style*="grid-template-columns"],
+    .customer-info-section {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 0.6rem !important;
+        margin-top: 0.3rem !important;
+        margin-bottom: 0.6rem !important;
+        page-break-inside: avoid;
+    }
+    
+    div[style*="grid-template-columns"] > .card,
+    .customer-info-section > .card {
+        margin: 0 !important;
+        page-break-inside: avoid;
+        border: none;
+        padding: 0.6rem;
+        background: white;
+        border-left: 3px solid #2563eb;
+    }
+    
+    .customer-info-section > .card:first-child {
+        margin-top: 0 !important;
+    }
+    
+    /* If there's a third card (Contact Information), put it below */
+    .customer-info-section > .card:nth-child(3) {
+        grid-column: 1 / -1;
+        margin-top: 0.4rem !important;
+    }
+    
+    /* Info sections - clean professional list format */
+    .card h3 {
+        font-size: 0.8rem;
+        margin-bottom: 0.4rem;
+        color: #2563eb !important;
+        border-bottom: 2px solid #2563eb;
+        padding-bottom: 0.2rem;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .card > div[style*="flex-direction: column"] {
+        display: block !important;
+        width: 100%;
+        margin-bottom: 0;
+        font-size: 0.75rem;
+    }
+    
+    .card > div[style*="flex-direction: column"] > div {
+        display: flex;
+        flex-direction: row;
+        font-size: 0.75rem;
+        line-height: 1.6;
+        margin-bottom: 0.3rem;
+        padding: 0.15rem 0;
+        border-bottom: 1px dotted #e5e7eb;
+    }
+    
+    .card > div[style*="flex-direction: column"] > div:last-child {
+        border-bottom: none;
+    }
+    
+    .card > div[style*="flex-direction: column"] > div strong {
+        display: inline-block;
+        padding: 0;
+        width: 40%;
+        font-weight: 600;
+        color: #374151;
+        flex-shrink: 0;
+    }
+    
+    .card > div[style*="flex-direction: column"] > div > *:not(strong):not(.badge) {
+        display: inline-block;
+        padding: 0;
+        color: #1f2937;
+        flex: 1;
+    }
+    
+    .card > div[style*="flex-direction: column"] > div > .badge {
+        display: inline-block;
+        margin-left: 0.3rem;
+        padding: 0.1rem 0.4rem;
+        border-radius: 0.2rem;
+        background: #f3f4f6 !important;
+        color: #1f2937 !important;
+        border: 1px solid #d1d5db;
+    }
+    
+    /* Badge styling for print */
+    .badge {
+        padding: 0.1rem 0.3rem;
+        font-size: 0.6rem;
+        border: 1px solid #ccc;
+        background: #f3f4f6 !important;
+        color: #1f2937 !important;
+        display: inline-block;
+    }
+    
+    /* Table styling for print */
+    .table-container {
+        overflow: visible !important;
+        margin-bottom: 0.5rem;
+    }
+    
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.65rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .table thead th {
+        background: #2563eb !important;
+        color: white !important;
+        padding: 0.3rem 0.4rem;
+        border: 1px solid #1e40af;
+        font-weight: 600;
+        font-size: 0.7rem;
+    }
+    
+    .table tbody td {
+        padding: 0.25rem 0.4rem;
+        border: 1px solid #e5e7eb;
+        font-size: 0.65rem;
+    }
+    
+    .table tbody tr {
+        page-break-inside: avoid;
+    }
+    
+    .table tbody tr:nth-child(even) {
+        background: #f9fafb;
+    }
+    
+    /* Preserve important colors in print */
+    span[style*="color: var(--primary-color)"] {
+        color: #2563eb !important;
+        font-weight: bold;
+    }
+    
+    span[style*="color: var(--success-color)"] {
+        color: #059669 !important;
+        font-weight: bold;
+    }
+    
+    span[style*="color: var(--warning-color)"] {
+        color: #d97706 !important;
+        font-weight: bold;
+    }
+    
+    span[style*="color: var(--danger-color)"] {
+        color: #dc2626 !important;
+        font-weight: bold;
+    }
+    
+    /* Hide links in print */
+    a {
+        color: #1f2937 !important;
+        text-decoration: none !important;
+    }
+    
+    /* Compact space info - convert to table */
+    .space-info-compact {
+        display: table !important;
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 0.5rem;
+        font-size: 0.7rem;
+        border: 1px solid #e5e7eb;
+    }
+    
+    .space-info-compact > div {
+        display: table-row;
+    }
+    
+    .space-info-compact > div strong {
+        display: table-cell;
+        padding: 0.2rem 0.5rem;
+        width: 40%;
+        border: 1px solid #e5e7eb;
+        background: #f3f4f6;
+        font-weight: 600;
+    }
+    
+    .space-info-compact > div:after {
+        content: '';
+        display: table-cell;
+        padding: 0.2rem 0.5rem;
+        border: 1px solid #e5e7eb;
+    }
+    
+    /* Fix for info sections that have nested content like badges */
+    .card > div[style*="flex-direction: column"] > div {
+        display: table-row !important;
+    }
+    
+    .card > div[style*="flex-direction: column"] > div > span.badge {
+        display: inline-block;
+    }
+    
+    /* Prevent empty pages */
+    .card:empty,
+    div:empty {
+        display: none !important;
+    }
+    
+    /* Remove excessive margins */
+    div[style*="margin-bottom: 2rem"] {
+        margin-bottom: 0.5rem !important;
+    }
+    
+    /* Ensure no orphaned content */
+    .card {
+        orphans: 3;
+        widows: 3;
+    }
+    
+    /* Section titles */
+    .card h2.card-title {
+        font-size: 0.8rem;
+        margin-bottom: 0.3rem;
+        color: #2563eb !important;
+        border-bottom: 1px solid #2563eb;
+        padding-bottom: 0.2rem;
+        page-break-after: avoid;
     }
 }
 </style>
+
+<script>
+// Show print header when printing
+window.addEventListener('beforeprint', function() {
+    const printHeader = document.querySelector('.print-header');
+    if (printHeader) {
+        printHeader.style.display = 'block';
+    }
+});
+
+window.addEventListener('afterprint', function() {
+    const printHeader = document.querySelector('.print-header');
+    if (printHeader) {
+        printHeader.style.display = 'none';
+    }
+});
+</script>
 
 <?php include '../includes/footer.php'; ?>
 

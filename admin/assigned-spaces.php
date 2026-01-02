@@ -188,8 +188,8 @@ include '../includes/header.php';
                                     <span style="color: var(--text-light);">No Agreement</span>
                                 <?php endif; ?>
                             </td>
-                            <td><?php echo $space['start_date'] ? formatDate($space['start_date']) : '-'; ?></td>
-                            <td><?php echo $space['end_date'] ? formatDate($space['end_date']) : '-'; ?></td>
+                            <td><?php echo formatDate($space['start_date'] ?? ''); ?></td>
+                            <td><?php echo formatDate($space['end_date'] ?? ''); ?></td>
                             <td><?php echo formatCurrency($space['agreement_rent'] ?: $space['monthly_rent']); ?></td>
                             <td><?php echo formatCurrency($space['security_deposit'] ?: 0); ?></td>
                             <td>

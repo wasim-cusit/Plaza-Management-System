@@ -5,31 +5,37 @@ A comprehensive web-based management system for commercial plazas, designed to m
 ## Features
 
 ### Admin Features
-- **Dashboard**: Overview of all plaza operations with key statistics
-- **Shop Management**: Add, edit, delete, and manage shop spaces
-- **Room Management**: Manage office/meeting room spaces
-- **Basement Management**: Handle parking and storage spaces
-- **Agreement Management**: Create and manage lease agreements with document upload
-- **Ledger System**: Track all financial transactions
-- **Payment Management**: Record and track payments with receipt uploads
-- **Maintenance Management**: Track and resolve maintenance requests
-- **Tenant Management**: Add, edit, and manage tenant accounts
-- **Reports**: Generate financial, tenant, lease, and maintenance reports
+- **Dashboard**: Overview of all plaza operations with interactive charts and key statistics
+- **Spaces Management**: Unified view of all spaces (shops, rooms, basements) with assignment capabilities
+- **Settings**: Manage shop, room, and basement configurations
+- **Customer Management**: Add, edit, and manage customer records (clients, not system users)
+- **Space Assignment**: Assign spaces to customers with automatic agreement and invoice generation
+- **Assigned Spaces**: View all assigned spaces with complete details, edit assignments, download agreements, and view invoices
+- **Agreements**: Automatically created when assigning spaces, with document upload and print functionality
+- **Ledger System**: Track all financial transactions (rent, security deposit, expenses, etc.)
+- **Payment Management**: Record payments with support for combined payments (rent + security deposit), receipt uploads, and pending balance tracking
+- **Customer Details**: Comprehensive customer view with personal info, financial summary, assigned spaces, agreements, ledger, and payment history
+- **Reports**: Generate financial, customer, lease, and maintenance reports with date filtering
+- **Profile Management**: Update admin profile (name and password)
 
-### Tenant Features
-- **Dashboard**: Personal overview with statistics
-- **My Agreements**: View and download lease agreements
-- **My Ledger**: View financial transaction history
-- **My Payments**: View payment history and download receipts
-- **Maintenance Requests**: Submit and track maintenance requests
-- **Profile**: Update personal information
+### Key Features
+- **Automatic Agreement Generation**: Agreements are created automatically when assigning spaces to customers
+- **Combined Payments**: Support for paying rent and security deposit together in a single transaction
+- **Partial Payments**: Allow customers to make partial payments during space assignment
+- **Invoice Generation**: Automatic invoice creation with print functionality
+- **Print Functionality**: Print agreements, invoices, and customer details reports
+- **Currency**: Pakistani Rupees (Rs) throughout the system
+- **Responsive Design**: Modern left sidebar navigation with mobile support
 
 ## Technology Stack
 
 - **Backend**: PHP (Procedural)
 - **Database**: MySQL
-- **Frontend**: HTML, CSS, JavaScript
-- **UI Framework**: Custom responsive CSS with Font Awesome icons
+- **Frontend**: HTML5, CSS3, JavaScript (ES6+)
+- **UI Framework**: Custom responsive CSS with Flexbox/Grid layouts
+- **Icons**: Font Awesome
+- **Charts**: Chart.js (for dashboard visualizations)
+- **Currency**: Pakistani Rupees (Rs)
 
 ## Requirements
 
@@ -61,7 +67,12 @@ A comprehensive web-based management system for commercial plazas, designed to m
      define('DB_NAME', 'plaza_ms');
      ```
 
-4. **Run setup script**:
+4. **Configure Base URL (Optional)**:
+   - The system auto-detects the base URL from the server
+   - For manual override, edit `config/config.php` and set BASE_URL before the getBaseUrl() function
+   - For online deployment, the system will automatically use HTTPS if available
+
+5. **Run setup script**:
    - Navigate to: `http://localhost/plaza_ms/setup.php`
    - This will create the default admin user
    - Default credentials:
@@ -69,108 +80,170 @@ A comprehensive web-based management system for commercial plazas, designed to m
      - Password: `admin123`
    - **IMPORTANT**: Change the password after first login!
 
-5. **Set up file permissions** (Linux/Mac):
+6. **Set up file permissions** (Linux/Mac):
    ```bash
    chmod -R 755 uploads/
    chmod -R 755 config/
    ```
 
-6. **Access the application**:
+7. **Access the application**:
    - Open browser and navigate to: `http://localhost/plaza_ms/`
-   - Login with the admin credentials created in step 4
+   - Login with the admin credentials created in step 5
+
+## Online Deployment
+
+### For Production Server:
+
+1. **Upload files** to your web server (via FTP, cPanel File Manager, or Git)
+
+2. **Database setup**:
+   - Create database on your hosting server
+   - Import `database.sql` file
+   - Update `config/database.php` with production database credentials
+
+3. **Base URL**:
+   - The system automatically detects the base URL from the server
+   - No manual configuration needed - it will use HTTPS if available
+   - For subdomain/subfolder installations, the path is auto-detected
+
+4. **File permissions** (Linux servers):
+   ```bash
+   chmod -R 755 uploads/
+   chmod -R 755 config/
+   chmod 644 .htaccess
+   ```
+
+5. **Security**:
+   - Uncomment HTTPS redirect in `.htaccess` if you have SSL certificate
+   - Change default admin password immediately
+   - Ensure `config/database.php` has proper file permissions (not publicly accessible)
+
+6. **Access**:
+   - Navigate to your domain: `https://yourdomain.com/plaza_ms/` (or root if installed there)
+   - Login with admin credentials
 
 ## File Structure
 
 ```
 plaza_ms/
-├── admin/              # Admin panel pages
-│   ├── dashboard.php
-│   ├── shops.php
-│   ├── rooms.php
-│   ├── basements.php
-│   ├── agreements.php
-│   ├── ledger.php
-│   ├── payments.php
-│   ├── maintenance.php
-│   ├── reports.php
-│   └── tenants.php
-├── tenant/             # Tenant panel pages
-│   ├── dashboard.php
-│   ├── agreements.php
-│   ├── ledger.php
-│   ├── payments.php
-│   ├── maintenance.php
-│   └── profile.php
-├── assets/             # Static assets
+├── admin/                      # Admin panel pages
+│   ├── dashboard.php          # Dashboard with charts and statistics
+│   ├── spaces.php             # View and assign all spaces
+│   ├── assigned-spaces.php    # View all assigned spaces with details
+│   ├── customers.php          # Customer management
+│   ├── customer-details.php   # Detailed customer view
+│   ├── settings.php           # Manage shops, rooms, basements
+│   ├── ledger.php             # Financial ledger management
+│   ├── payments.php           # Payment management with pending balances
+│   ├── reports.php            # Generate various reports
+│   ├── profile.php            # Admin profile management
+│   ├── assign-space.php       # Handle space assignment
+│   ├── update-assignment.php  # Update existing assignments
+│   ├── unassign-space.php     # Unassign spaces
+│   ├── print-agreement.php    # Print agreement
+│   ├── print-invoice.php      # Print invoice
+│   ├── get-invoices.php       # AJAX endpoint for invoices
+│   └── add-customer-ajax.php  # AJAX endpoint for adding customers
+├── assets/                     # Static assets
 │   ├── css/
-│   │   └── style.css
+│   │   └── style.css          # Main stylesheet with responsive design
 │   └── js/
-│       └── main.js
-├── config/             # Configuration files
-│   ├── config.php
-│   └── database.php
-├── includes/           # Common includes
-│   ├── header.php
-│   └── footer.php
-├── uploads/            # Uploaded files
-│   ├── agreements/
-│   └── receipts/
-├── database.sql        # Database schema
-├── index.php           # Home page
-├── login.php           # Login page
-├── logout.php          # Logout handler
-├── profile.php         # Profile redirect
-└── README.md           # This file
+│       └── main.js            # Main JavaScript for interactivity
+├── config/                     # Configuration files
+│   ├── config.php             # Global configuration and helper functions
+│   └── database.php           # Database connection
+├── includes/                   # Common includes
+│   ├── header.php             # Header with sidebar navigation
+│   └── footer.php             # Footer
+├── uploads/                    # Uploaded files
+│   ├── agreements/            # Agreement documents
+│   └── receipts/              # Payment receipts
+├── database.sql                # Database schema
+├── index.php                   # Home page (redirects to login)
+├── login.php                   # Standalone login page
+├── logout.php                  # Logout handler
+└── README.md                   # This file
 ```
 
 ## Database Schema
 
 The system uses the following main tables:
-- `users` - Admin and tenant accounts
+- `users` - System user accounts (admin only, customers are not system users)
+- `customers` - Customer/client records (plaza tenants/clients)
 - `shops` - Shop spaces
 - `rooms` - Room spaces
 - `basements` - Basement spaces
-- `agreements` - Lease agreements
-- `ledger` - Financial transactions
-- `payments` - Payment records
+- `agreements` - Lease agreements (automatically created on space assignment)
+- `ledger` - Financial transactions (rent, security deposit, expenses, etc.)
+- `payments` - Payment records with receipt uploads
 - `maintenance_requests` - Maintenance requests
 - `notifications` - System notifications
+
+### Key Relationships
+- `customers` table stores client information (separate from system users)
+- `agreements` reference `customers.customer_id` (not `users.user_id`)
+- `ledger` and `payments` reference `customers.customer_id`
+- Spaces (shops, rooms, basements) can be assigned to customers via `customer_id`
 
 ## Usage
 
 ### Admin Login
 1. Navigate to the login page
-2. Enter admin credentials
+2. Enter admin credentials (default: `admin` / `admin123`)
 3. Access the admin dashboard
 
-### Creating a Tenant
-1. Go to **Tenants** in admin panel
-2. Click **Add Tenant**
-3. Fill in tenant details
+### Managing Customers
+1. Go to **Customers** in admin panel
+2. Click **Add Customer** to create a new customer record
+3. Fill in customer details (name, phone, CNIC, address, etc.)
 4. Save
 
-### Creating an Agreement
-1. Go to **Agreements** in admin panel
-2. Click **Create Agreement**
-3. Select tenant and space
-4. Fill in agreement details
-5. Upload agreement document (optional)
-6. Save
+### Assigning a Space to Customer
+1. Go to **Spaces** in admin panel
+2. Find the space you want to assign
+3. Click **Assign to Customer**
+4. Select existing customer or create new customer directly from the modal
+5. Fill in agreement details (start date, end date, monthly rent, security deposit)
+6. Optionally make partial payment during assignment
+7. Upload agreement document (optional)
+8. Save - Agreement and initial ledger entries are created automatically
+
+### Viewing Assigned Spaces
+1. Go to **Assigned Spaces** in admin panel
+2. View all currently assigned spaces with complete details
+3. Use actions to:
+   - Edit assignment details
+   - View/Download agreement
+   - View invoices
+   - View customer details
 
 ### Recording a Payment
 1. Go to **Payments** in admin panel
-2. Click **Record Payment**
-3. Select tenant and related agreement/ledger entry
-4. Enter payment details
-5. Upload receipt (optional)
-6. Save
+2. View pending/remaining balances at the top
+3. Click **Pay Now** on any pending balance, or click **Record Payment**
+4. Select customer and items to pay (can select multiple items for combined payment)
+5. Enter payment details (amount, method, transaction ID)
+6. Upload receipt (optional)
+7. Save - Ledger entries are automatically updated to 'paid' status
 
-### Submitting Maintenance Request (Tenant)
-1. Login as tenant
-2. Go to **Maintenance**
-3. Click **Submit Request**
-4. Fill in issue details
-5. Submit
+### Viewing Customer Details
+1. Go to **Customers** in admin panel
+2. Click **View Details** on any customer
+3. View comprehensive information including:
+   - Personal information
+   - Financial summary (Security Deposit, Total Paid, Pending, Overdue)
+   - Assigned spaces
+   - Agreements with print options
+   - Ledger entries
+   - Payment history
+4. Use **Print** button to generate a printable customer report
+
+### Generating Reports
+1. Go to **Reports** in admin panel
+2. Select report type (Financial, Customer, Lease, Maintenance)
+3. Set date range
+4. Click **Generate**
+5. View detailed report with statistics and data tables
 
 ## Security Notes
 
@@ -210,7 +283,22 @@ For issues or questions:
 
 This project is provided as-is for educational and commercial use.
 
+## Recent Updates
+
+- **Customer Management System**: Separated customers (clients) from system users
+- **Automatic Agreement Generation**: Agreements created automatically when assigning spaces
+- **Combined Payments**: Support for paying multiple items (rent + security deposit) in one transaction
+- **Partial Payments**: Allow partial payments during space assignment with automatic balance tracking
+- **Enhanced Dashboard**: Interactive charts and visual statistics
+- **Print Functionality**: Print agreements, invoices, and customer reports
+- **Modern UI**: Left sidebar navigation, responsive design, professional styling
+- **Table Scrolling**: Tables scroll horizontally within containers without moving the page
+
 ## Version
 
-Version 1.0.0 - Initial Release
+Version 2.0.0 - Major Update
+- Customer management system
+- Automatic agreement generation
+- Combined payment support
+- Enhanced reporting and printing
 

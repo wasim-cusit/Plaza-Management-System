@@ -2,14 +2,14 @@
     <?php if (isLoggedIn()): ?>
             <footer class="footer">
                 <div class="footer-content">
-                    <p>&copy; <?php echo date('Y'); ?> Plaza Management System - Internal Use Only. All rights reserved.</p>
+                    <p>&copy; <?php echo date('Y'); ?> Plaza Management System</p>
                 </div>
             </footer>
         </div>
     <?php else: ?>
         <footer class="footer">
             <div class="footer-content">
-                <p>&copy; <?php echo date('Y'); ?> Plaza Management System - Internal Use Only. All rights reserved.</p>
+                <p>&copy; <?php echo date('Y'); ?> Plaza Management System</p>
             </div>
         </footer>
     <?php endif; ?>

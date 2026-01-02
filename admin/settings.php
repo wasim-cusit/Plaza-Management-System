@@ -4,8 +4,8 @@ requireAdmin();
 
 $conn = getDBConnection();
 $active_tab = $_GET['tab'] ?? 'shops';
-$message = '';
-$message_type = '';
+$message = $_GET['msg'] ?? '';
+$message_type = $_GET['type'] ?? '';
 
 // Handle form submissions for all space types
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -34,6 +34,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($stmt->execute()) {
                 $message = 'Shop ' . ($action === 'add' ? 'added' : 'updated') . ' successfully!';
                 $message_type = 'success';
+                header('Location: ' . BASE_URL . 'admin/settings.php?tab=shops&msg=' . urlencode($message) . '&type=' . $message_type);
+                exit();
             } else {
                 $message = 'Error: ' . $conn->error;
                 $message_type = 'danger';
@@ -60,6 +62,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($stmt->execute()) {
                 $message = 'Room ' . ($action === 'add' ? 'added' : 'updated') . ' successfully!';
                 $message_type = 'success';
+                header('Location: ' . BASE_URL . 'admin/settings.php?tab=rooms&msg=' . urlencode($message) . '&type=' . $message_type);
+                exit();
             } else {
                 $message = 'Error: ' . $conn->error;
                 $message_type = 'danger';
@@ -86,6 +90,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($stmt->execute()) {
                 $message = 'Basement ' . ($action === 'add' ? 'added' : 'updated') . ' successfully!';
                 $message_type = 'success';
+                header('Location: ' . BASE_URL . 'admin/settings.php?tab=basements&msg=' . urlencode($message) . '&type=' . $message_type);
+                exit();
+            } else {
+                $message = 'Error: ' . $conn->error;
+                $message_type = 'danger';
+            }
+            $stmt->close();
+        } elseif ($space_type === 'apartment') {
+            $apartment_number = trim($_POST['apartment_number']);
+            $apartment_name = trim($_POST['apartment_name'] ?? '');
+            $floor_number = intval($_POST['floor_number']);
+            $area_sqft = floatval($_POST['area_sqft']);
+            $monthly_rent = floatval($_POST['monthly_rent']);
+            $bedrooms = intval($_POST['bedrooms'] ?? 1);
+            $bathrooms = intval($_POST['bathrooms'] ?? 1);
+            $status = $_POST['status'];
+            $description = trim($_POST['description'] ?? '');
+            
+            if ($action === 'add') {
+                $stmt = $conn->prepare("INSERT INTO apartments (apartment_number, apartment_name, floor_number, area_sqft, monthly_rent, bedrooms, bathrooms, status, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param("ssiddiiss", $apartment_number, $apartment_name, $floor_number, $area_sqft, $monthly_rent, $bedrooms, $bathrooms, $status, $description);
+            } else {
+                $apartment_id = intval($_POST['space_id']);
+                $stmt = $conn->prepare("UPDATE apartments SET apartment_number = ?, apartment_name = ?, floor_number = ?, area_sqft = ?, monthly_rent = ?, bedrooms = ?, bathrooms = ?, status = ?, description = ? WHERE apartment_id = ?");
+                $stmt->bind_param("ssiddiissi", $apartment_number, $apartment_name, $floor_number, $area_sqft, $monthly_rent, $bedrooms, $bathrooms, $status, $description, $apartment_id);
+            }
+            
+            if ($stmt->execute()) {
+                $message = 'Apartment ' . ($action === 'add' ? 'added' : 'updated') . ' successfully!';
+                $message_type = 'success';
+                header('Location: ' . BASE_URL . 'admin/settings.php?tab=apartments&msg=' . urlencode($message) . '&type=' . $message_type);
+                exit();
+            } else {
+                $message = 'Error: ' . $conn->error;
+                $message_type = 'danger';
+            }
+            $stmt->close();
+        } elseif ($space_type === 'parking') {
+            $parking_number = trim($_POST['parking_number']);
+            $parking_name = trim($_POST['parking_name'] ?? '');
+            $parking_type = $_POST['parking_type'];
+            $area_sqft = floatval($_POST['area_sqft']);
+            $monthly_rent = floatval($_POST['monthly_rent']);
+            $status = $_POST['status'];
+            $description = trim($_POST['description'] ?? '');
+            
+            if ($action === 'add') {
+                $stmt = $conn->prepare("INSERT INTO parking (parking_number, parking_name, parking_type, area_sqft, monthly_rent, status, description) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param("sssdsss", $parking_number, $parking_name, $parking_type, $area_sqft, $monthly_rent, $status, $description);
+            } else {
+                $parking_id = intval($_POST['space_id']);
+                $stmt = $conn->prepare("UPDATE parking SET parking_number = ?, parking_name = ?, parking_type = ?, area_sqft = ?, monthly_rent = ?, status = ?, description = ? WHERE parking_id = ?");
+                $stmt->bind_param("sssdsssi", $parking_number, $parking_name, $parking_type, $area_sqft, $monthly_rent, $status, $description, $parking_id);
+            }
+            
+            if ($stmt->execute()) {
+                $message = 'Parking ' . ($action === 'add' ? 'added' : 'updated') . ' successfully!';
+                $message_type = 'success';
+                header('Location: ' . BASE_URL . 'admin/settings.php?tab=parking&msg=' . urlencode($message) . '&type=' . $message_type);
+                exit();
             } else {
                 $message = 'Error: ' . $conn->error;
                 $message_type = 'danger';
@@ -102,12 +166,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $conn->prepare("DELETE FROM rooms WHERE room_id = ?");
         } elseif ($space_type === 'basement') {
             $stmt = $conn->prepare("DELETE FROM basements WHERE basement_id = ?");
+        } elseif ($space_type === 'apartment') {
+            $stmt = $conn->prepare("DELETE FROM apartments WHERE apartment_id = ?");
+        } elseif ($space_type === 'parking') {
+            $stmt = $conn->prepare("DELETE FROM parking WHERE parking_id = ?");
         }
         
         $stmt->bind_param("i", $space_id);
         if ($stmt->execute()) {
             $message = ucfirst($space_type) . ' deleted successfully!';
             $message_type = 'success';
+            $tab = $space_type === 'shop' ? 'shops' : ($space_type === 'room' ? 'rooms' : ($space_type === 'basement' ? 'basements' : ($space_type === 'apartment' ? 'apartments' : 'parking')));
+            header('Location: ' . BASE_URL . 'admin/settings.php?tab=' . $tab . '&msg=' . urlencode($message) . '&type=' . $message_type);
+            exit();
         } else {
             $message = 'Error: ' . $conn->error;
             $message_type = 'danger';
@@ -120,6 +191,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $shops = $conn->query("SELECT * FROM shops ORDER BY shop_number");
 $rooms = $conn->query("SELECT * FROM rooms ORDER BY room_number");
 $basements = $conn->query("SELECT * FROM basements ORDER BY basement_number");
+$apartments = $conn->query("SELECT * FROM apartments ORDER BY apartment_number");
+$parking = $conn->query("SELECT * FROM parking ORDER BY parking_number");
 
 $page_title = 'Settings - Plaza Management System';
 include '../includes/header.php';
@@ -147,6 +220,12 @@ include '../includes/header.php';
         </button>
         <button class="tab-btn <?php echo $active_tab === 'basements' ? 'active' : ''; ?>" onclick="window.location.href='?tab=basements'">
             <i class="fas fa-layer-group"></i> Basements
+        </button>
+        <button class="tab-btn <?php echo $active_tab === 'apartments' ? 'active' : ''; ?>" onclick="window.location.href='?tab=apartments'">
+            <i class="fas fa-building"></i> Apartments
+        </button>
+        <button class="tab-btn <?php echo $active_tab === 'parking' ? 'active' : ''; ?>" onclick="window.location.href='?tab=parking'">
+            <i class="fas fa-car"></i> Parking
         </button>
     </div>
 
@@ -346,25 +425,159 @@ include '../includes/header.php';
                     </table>
                 </div>
             </div>
+
+        <?php elseif ($active_tab === 'apartments'): ?>
+            <div class="tab-pane active">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h2>Apartment Management</h2>
+                    <button class="btn btn-primary" onclick="openSpaceModal('apartment', 'add')">
+                        <i class="fas fa-plus"></i> Add Apartment
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Apartment Number</th>
+                                <th>Apartment Name</th>
+                                <th>Floor</th>
+                                <th>Area (sqft)</th>
+                                <th>Bedrooms</th>
+                                <th>Bathrooms</th>
+                                <th>Monthly Rent</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if ($apartments->num_rows > 0): ?>
+                                <?php while ($apartment = $apartments->fetch_assoc()): ?>
+                                    <tr>
+                                        <td><?php echo htmlspecialchars($apartment['apartment_number']); ?></td>
+                                        <td><?php echo htmlspecialchars($apartment['apartment_name'] ?? '-'); ?></td>
+                                        <td><?php echo $apartment['floor_number']; ?></td>
+                                        <td><?php echo number_format($apartment['area_sqft'], 2); ?></td>
+                                        <td><?php echo $apartment['bedrooms']; ?></td>
+                                        <td><?php echo $apartment['bathrooms']; ?></td>
+                                        <td><?php echo formatCurrency($apartment['monthly_rent']); ?></td>
+                                        <td>
+                                            <span class="badge badge-<?php 
+                                                echo $apartment['status'] === 'occupied' ? 'success' : 
+                                                    ($apartment['status'] === 'maintenance' ? 'warning' : 'secondary'); 
+                                            ?>">
+                                                <?php echo ucfirst($apartment['status']); ?>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <button class="btn btn-sm btn-primary" onclick="openSpaceModal('apartment', 'edit', <?php echo htmlspecialchars(json_encode($apartment)); ?>)" title="Edit">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure?');">
+                                                    <input type="hidden" name="action" value="delete">
+                                                    <input type="hidden" name="space_type" value="apartment">
+                                                    <input type="hidden" name="space_id" value="<?php echo $apartment['apartment_id']; ?>">
+                                                    <button type="submit" class="btn btn-sm btn-danger" title="Delete">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endwhile; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="9" style="text-align: center; color: var(--text-light);">No apartments found</td>
+                                </tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        <?php elseif ($active_tab === 'parking'): ?>
+            <div class="tab-pane active">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h2>Parking Management</h2>
+                    <button class="btn btn-primary" onclick="openSpaceModal('parking', 'add')">
+                        <i class="fas fa-plus"></i> Add Parking
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Parking Number</th>
+                                <th>Parking Name</th>
+                                <th>Type</th>
+                                <th>Area (sqft)</th>
+                                <th>Monthly Rent</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if ($parking->num_rows > 0): ?>
+                                <?php while ($park = $parking->fetch_assoc()): ?>
+                                    <tr>
+                                        <td><?php echo htmlspecialchars($park['parking_number']); ?></td>
+                                        <td><?php echo htmlspecialchars($park['parking_name'] ?? '-'); ?></td>
+                                        <td><?php echo ucfirst($park['parking_type']); ?></td>
+                                        <td><?php echo number_format($park['area_sqft'], 2); ?></td>
+                                        <td><?php echo formatCurrency($park['monthly_rent']); ?></td>
+                                        <td>
+                                            <span class="badge badge-<?php 
+                                                echo $park['status'] === 'occupied' ? 'success' : 
+                                                    ($park['status'] === 'maintenance' ? 'warning' : 'secondary'); 
+                                            ?>">
+                                                <?php echo ucfirst($park['status']); ?>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <button class="btn btn-sm btn-primary" onclick="openSpaceModal('parking', 'edit', <?php echo htmlspecialchars(json_encode($park)); ?>)" title="Edit">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure?');">
+                                                    <input type="hidden" name="action" value="delete">
+                                                    <input type="hidden" name="space_type" value="parking">
+                                                    <input type="hidden" name="space_id" value="<?php echo $park['parking_id']; ?>">
+                                                    <button type="submit" class="btn btn-sm btn-danger" title="Delete">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endwhile; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="7" style="text-align: center; color: var(--text-light);">No parking spaces found</td>
+                                </tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         <?php endif; ?>
     </div>
 </div>
 
 <!-- Space Modal -->
-<div id="spaceModal" class="modal" style="display: none;">
-    <div class="card" style="max-width: 600px; margin: 5% auto; position: relative;">
-        <div class="card-header">
+<div id="spaceModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); overflow: auto;">
+    <div class="card" style="max-width: 800px; width: 90%; margin: 2% auto; position: relative; max-height: 90vh; overflow-y: auto;">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
             <h2 class="card-title" id="modalTitle">Add Space</h2>
-            <button onclick="closeSpaceModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+            <button onclick="closeSpaceModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-color); padding: 0; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">&times;</button>
         </div>
-        <form method="POST" id="spaceForm">
+        <form method="POST" id="spaceForm" style="padding: 1.5rem;">
             <input type="hidden" name="action" id="formAction" value="add">
             <input type="hidden" name="space_type" id="spaceType">
             <input type="hidden" name="space_id" id="spaceId">
             
             <div id="spaceFormContent"></div>
             
-            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
                 <button type="button" class="btn btn-secondary" onclick="closeSpaceModal()">Cancel</button>
                 <button type="submit" class="btn btn-primary">Save</button>
             </div>
@@ -375,8 +588,19 @@ include '../includes/header.php';
 <script>
 function openSpaceModal(type, action, data = null) {
     document.getElementById('spaceType').value = type;
-    document.getElementById('formAction').value = action;
-    document.getElementById('spaceId').value = data ? (data[type + '_id'] || '') : '';
+    // Convert 'edit' to 'update' for PHP processing
+    const formAction = action === 'edit' ? 'update' : action;
+    document.getElementById('formAction').value = formAction;
+    
+    // Get the correct ID field name
+    let idField = '';
+    if (type === 'shop') idField = 'shop_id';
+    else if (type === 'room') idField = 'room_id';
+    else if (type === 'basement') idField = 'basement_id';
+    else if (type === 'apartment') idField = 'apartment_id';
+    else if (type === 'parking') idField = 'parking_id';
+    
+    document.getElementById('spaceId').value = data && data[idField] ? data[idField] : '';
     
     const title = action === 'add' ? 'Add ' + type.charAt(0).toUpperCase() + type.slice(1) : 'Edit ' + type.charAt(0).toUpperCase() + type.slice(1);
     document.getElementById('modalTitle').textContent = title;
@@ -385,33 +609,39 @@ function openSpaceModal(type, action, data = null) {
     
     if (type === 'shop' || type === 'room') {
         formContent = `
-            <div class="form-group">
-                <label class="form-label">${type.charAt(0).toUpperCase() + type.slice(1)} Number *</label>
-                <input type="text" class="form-control" name="${type}_number" id="${type}_number" required>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">${type.charAt(0).toUpperCase() + type.slice(1)} Number *</label>
+                    <input type="text" class="form-control" name="${type}_number" id="${type}_number" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">${type.charAt(0).toUpperCase() + type.slice(1)} Name</label>
+                    <input type="text" class="form-control" name="${type}_name" id="${type}_name">
+                </div>
             </div>
-            <div class="form-group">
-                <label class="form-label">${type.charAt(0).toUpperCase() + type.slice(1)} Name</label>
-                <input type="text" class="form-control" name="${type}_name" id="${type}_name">
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Floor Number *</label>
+                    <input type="number" class="form-control" name="floor_number" id="floor_number" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Area (sqft) *</label>
+                    <input type="number" step="0.01" class="form-control" name="area_sqft" id="area_sqft" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Monthly Rent *</label>
+                    <input type="number" step="0.01" class="form-control" name="monthly_rent" id="monthly_rent" required>
+                </div>
             </div>
-            <div class="form-group">
-                <label class="form-label">Floor Number *</label>
-                <input type="number" class="form-control" name="floor_number" id="floor_number" required>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Area (sqft) *</label>
-                <input type="number" step="0.01" class="form-control" name="area_sqft" id="area_sqft" required>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Monthly Rent *</label>
-                <input type="number" step="0.01" class="form-control" name="monthly_rent" id="monthly_rent" required>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Status *</label>
-                <select class="form-control" name="status" id="status" required>
-                    <option value="available">Available</option>
-                    <option value="occupied">Occupied</option>
-                    <option value="maintenance">Maintenance</option>
-                </select>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Status *</label>
+                    <select class="form-control" name="status" id="status" required>
+                        <option value="available">Available</option>
+                        <option value="occupied">Occupied</option>
+                        <option value="maintenance">Maintenance</option>
+                    </select>
+                </div>
             </div>
             <div class="form-group">
                 <label class="form-label">Description</label>
@@ -420,37 +650,137 @@ function openSpaceModal(type, action, data = null) {
         `;
     } else if (type === 'basement') {
         formContent = `
-            <div class="form-group">
-                <label class="form-label">Basement Number *</label>
-                <input type="text" class="form-control" name="basement_number" id="basement_number" required>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Basement Number *</label>
+                    <input type="text" class="form-control" name="basement_number" id="basement_number" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Basement Name</label>
+                    <input type="text" class="form-control" name="basement_name" id="basement_name">
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Space Type *</label>
+                    <select class="form-control" name="space_type_val" id="space_type_val" required>
+                        <option value="parking">Parking</option>
+                        <option value="storage">Storage</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Area (sqft) *</label>
+                    <input type="number" step="0.01" class="form-control" name="area_sqft" id="area_sqft" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Monthly Rent *</label>
+                    <input type="number" step="0.01" class="form-control" name="monthly_rent" id="monthly_rent" required>
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Status *</label>
+                    <select class="form-control" name="status" id="status" required>
+                        <option value="available">Available</option>
+                        <option value="occupied">Occupied</option>
+                        <option value="maintenance">Maintenance</option>
+                    </select>
+                </div>
             </div>
             <div class="form-group">
-                <label class="form-label">Basement Name</label>
-                <input type="text" class="form-control" name="basement_name" id="basement_name">
+                <label class="form-label">Description</label>
+                <textarea class="form-control" name="description" id="description" rows="3"></textarea>
+            </div>
+        `;
+    } else if (type === 'apartment') {
+        formContent = `
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Apartment Number *</label>
+                    <input type="text" class="form-control" name="apartment_number" id="apartment_number" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Apartment Name</label>
+                    <input type="text" class="form-control" name="apartment_name" id="apartment_name">
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Floor Number *</label>
+                    <input type="number" class="form-control" name="floor_number" id="floor_number" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Area (sqft) *</label>
+                    <input type="number" step="0.01" class="form-control" name="area_sqft" id="area_sqft" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Bedrooms *</label>
+                    <input type="number" class="form-control" name="bedrooms" id="bedrooms" value="1" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Bathrooms *</label>
+                    <input type="number" class="form-control" name="bathrooms" id="bathrooms" value="1" min="1" required>
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Monthly Rent *</label>
+                    <input type="number" step="0.01" class="form-control" name="monthly_rent" id="monthly_rent" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Status *</label>
+                    <select class="form-control" name="status" id="status" required>
+                        <option value="available">Available</option>
+                        <option value="occupied">Occupied</option>
+                        <option value="maintenance">Maintenance</option>
+                    </select>
+                </div>
             </div>
             <div class="form-group">
-                <label class="form-label">Space Type *</label>
-                <select class="form-control" name="space_type_val" id="space_type_val" required>
-                    <option value="parking">Parking</option>
-                    <option value="storage">Storage</option>
-                    <option value="other">Other</option>
-                </select>
+                <label class="form-label">Description</label>
+                <textarea class="form-control" name="description" id="description" rows="3"></textarea>
             </div>
-            <div class="form-group">
-                <label class="form-label">Area (sqft) *</label>
-                <input type="number" step="0.01" class="form-control" name="area_sqft" id="area_sqft" required>
+        `;
+    } else if (type === 'parking') {
+        formContent = `
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Parking Number *</label>
+                    <input type="text" class="form-control" name="parking_number" id="parking_number" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Parking Name</label>
+                    <input type="text" class="form-control" name="parking_name" id="parking_name">
+                </div>
             </div>
-            <div class="form-group">
-                <label class="form-label">Monthly Rent *</label>
-                <input type="number" step="0.01" class="form-control" name="monthly_rent" id="monthly_rent" required>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Parking Type *</label>
+                    <select class="form-control" name="parking_type" id="parking_type" required>
+                        <option value="covered">Covered</option>
+                        <option value="open">Open</option>
+                        <option value="reserved">Reserved</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Area (sqft) *</label>
+                    <input type="number" step="0.01" class="form-control" name="area_sqft" id="area_sqft" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Monthly Rent *</label>
+                    <input type="number" step="0.01" class="form-control" name="monthly_rent" id="monthly_rent" required>
+                </div>
             </div>
-            <div class="form-group">
-                <label class="form-label">Status *</label>
-                <select class="form-control" name="status" id="status" required>
-                    <option value="available">Available</option>
-                    <option value="occupied">Occupied</option>
-                    <option value="maintenance">Maintenance</option>
-                </select>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Status *</label>
+                    <select class="form-control" name="status" id="status" required>
+                        <option value="available">Available</option>
+                        <option value="occupied">Occupied</option>
+                        <option value="maintenance">Maintenance</option>
+                    </select>
+                </div>
             </div>
             <div class="form-group">
                 <label class="form-label">Description</label>
@@ -461,28 +791,67 @@ function openSpaceModal(type, action, data = null) {
     
     document.getElementById('spaceFormContent').innerHTML = formContent;
     
+    // Populate form with data if editing
     if (data) {
-        // Populate form with data
-        Object.keys(data).forEach(key => {
-            const field = document.getElementById(key);
-            if (field) field.value = data[key] || '';
-        });
+        // Wait a moment for DOM to update
+        setTimeout(() => {
+            Object.keys(data).forEach(key => {
+                const field = document.getElementById(key);
+                if (field) {
+                    if (field.tagName === 'SELECT') {
+                        field.value = data[key] || '';
+                    } else {
+                        field.value = data[key] || '';
+                    }
+                }
+            });
+        }, 10);
+    } else {
+        // Reset form for add mode
+        setTimeout(() => {
+            const form = document.getElementById('spaceForm');
+            if (form) {
+                const inputs = form.querySelectorAll('input, select, textarea');
+                inputs.forEach(input => {
+                    if (input.type !== 'hidden' && input.id !== 'spaceType' && input.id !== 'formAction') {
+                        input.value = '';
+                    }
+                });
+            }
+        }, 10);
     }
     
     document.getElementById('spaceModal').style.display = 'block';
+    document.body.style.overflow = 'hidden'; // Prevent background scrolling
 }
 
 function closeSpaceModal() {
     document.getElementById('spaceModal').style.display = 'none';
-    document.getElementById('spaceForm').reset();
+    document.body.style.overflow = 'auto'; // Restore scrolling
+    const form = document.getElementById('spaceForm');
+    if (form) {
+        form.reset();
+        document.getElementById('spaceFormContent').innerHTML = '';
+    }
 }
 
+// Close modal when clicking outside
 window.onclick = function(event) {
     const modal = document.getElementById('spaceModal');
     if (event.target == modal) {
         closeSpaceModal();
     }
 }
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        const modal = document.getElementById('spaceModal');
+        if (modal && modal.style.display === 'block') {
+            closeSpaceModal();
+        }
+    }
+});
 </script>
 
 <style>
@@ -501,7 +870,6 @@ window.onclick = function(event) {
     cursor: pointer;
     font-size: 1rem;
     color: var(--text-light);
-    transition: all 0.3s;
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -528,6 +896,38 @@ window.onclick = function(event) {
 
 .tab-pane.active {
     display: block;
+}
+
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    overflow: auto;
+    animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal .card {
+    animation: slideDown 0.3s;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 </style>
 

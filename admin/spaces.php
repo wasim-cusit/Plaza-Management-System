@@ -207,12 +207,9 @@ include '../includes/header.php';
 
             <div class="form-group">
                 <label class="form-label">Or Create New Customer</label>
-                <button type="button" class="btn btn-secondary" onclick="window.open('<?php echo BASE_URL; ?>admin/customers.php', '_blank')">
+                <button type="button" class="btn btn-secondary" onclick="openAddCustomerModal()">
                     <i class="fas fa-plus"></i> Add New Customer
                 </button>
-                <small style="display: block; margin-top: 0.5rem; color: var(--text-light);">
-                    After creating a new customer, refresh this page to see them in the list.
-                </small>
             </div>
 
             <h3 style="margin: 1.5rem 0 1rem 0; border-top: 2px solid var(--border-color); padding-top: 1rem;">Agreement Details</h3>
@@ -231,11 +228,11 @@ include '../includes/header.php';
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                 <div class="form-group">
                     <label class="form-label">Monthly Rent *</label>
-                    <input type="number" step="0.01" class="form-control" name="monthly_rent" id="monthly_rent" required>
+                    <input type="number" step="0.01" class="form-control" name="monthly_rent" id="monthly_rent" required oninput="calculateTotalDue()">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Security Deposit</label>
-                    <input type="number" step="0.01" class="form-control" name="security_deposit" id="security_deposit" value="0">
+                    <input type="number" step="0.01" class="form-control" name="security_deposit" id="security_deposit" value="0" oninput="calculateTotalDue()">
                 </div>
             </div>
 
@@ -250,10 +247,163 @@ include '../includes/header.php';
                 <small style="color: var(--text-light);">Upload agreement document if available</small>
             </div>
 
+            <h3 style="margin: 1.5rem 0 1rem 0; border-top: 2px solid var(--border-color); padding-top: 1rem;">Initial Payment</h3>
+            
+            <div class="form-group">
+                <label class="form-label">Total Amount Due</label>
+                <input type="number" step="0.01" class="form-control" id="total_amount_due" readonly style="background-color: var(--light-color); font-weight: bold;">
+                <small style="color: var(--text-light);">Security Deposit + First Month Rent</small>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Amount Paying Now</label>
+                    <input type="number" step="0.01" class="form-control" name="initial_payment_amount" id="initial_payment_amount" value="0" oninput="calculateRemaining()">
+                    <small style="color: var(--text-light);">Enter 0 if paying later</small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Payment Method</label>
+                    <select class="form-control" name="initial_payment_method" id="initial_payment_method">
+                        <option value="cash">Cash</option>
+                        <option value="bank_transfer">Bank Transfer</option>
+                        <option value="online">Online</option>
+                        <option value="check">Check</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Remaining Balance</label>
+                <input type="number" step="0.01" class="form-control" id="remaining_balance" readonly style="background-color: var(--light-color); font-weight: bold; color: var(--warning-color);">
+                <small style="color: var(--text-light);">This will be added to pending payments</small>
+            </div>
+
             <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
                 <button type="button" class="btn btn-secondary" onclick="closeAssignModal()">Cancel</button>
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-check"></i> Assign & Create Agreement
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Add Customer Modal -->
+<div id="addCustomerModal" class="modal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); overflow: auto;">
+    <div class="card" style="max-width: 800px; margin: 2% auto; position: relative; max-height: 90vh; overflow-y: auto;">
+        <div class="card-header">
+            <h2 class="card-title">Add New Customer</h2>
+            <button onclick="closeAddCustomerModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-color);">&times;</button>
+        </div>
+        <form id="addCustomerForm">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Full Name *</label>
+                    <input type="text" class="form-control" name="full_name" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Gender *</label>
+                    <select class="form-control" name="gender" required>
+                        <option value="">Select Gender</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Phone *</label>
+                    <input type="text" class="form-control" name="phone" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Alternate Phone</label>
+                    <input type="text" class="form-control" name="alternate_phone">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-control" name="email">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">CNIC</label>
+                    <input type="text" class="form-control" name="cnic" placeholder="12345-1234567-1">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Address</label>
+                <textarea class="form-control" name="address" rows="2"></textarea>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">City</label>
+                    <input type="text" class="form-control" name="city">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Country</label>
+                    <input type="text" class="form-control" name="country" value="Pakistan">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Occupation</label>
+                <input type="text" class="form-control" name="occupation">
+            </div>
+
+            <h3 style="margin: 1.5rem 0 1rem 0; border-top: 2px solid var(--border-color); padding-top: 1rem; font-size: 1.1rem;">Emergency Contact</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Emergency Contact Name</label>
+                    <input type="text" class="form-control" name="emergency_contact_name">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Emergency Contact Phone</label>
+                    <input type="text" class="form-control" name="emergency_contact_phone">
+                </div>
+            </div>
+
+            <h3 style="margin: 1.5rem 0 1rem 0; border-top: 2px solid var(--border-color); padding-top: 1rem; font-size: 1.1rem;">Reference</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Reference Name</label>
+                    <input type="text" class="form-control" name="reference_name">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Reference Phone</label>
+                    <input type="text" class="form-control" name="reference_phone">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Status</label>
+                <select class="form-control" name="status">
+                    <option value="active" selected>Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Notes</label>
+                <textarea class="form-control" name="notes" rows="3"></textarea>
+            </div>
+
+            <div id="addCustomerMessage" style="display: none; margin: 1rem 0;"></div>
+
+            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                <button type="button" class="btn btn-secondary" onclick="closeAddCustomerModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-check"></i> Add Customer
                 </button>
             </div>
         </form>
@@ -265,6 +415,8 @@ function assignSpace(space) {
     document.getElementById('assign_space_id').value = space.space_id;
     document.getElementById('assign_space_type').value = space.space_type;
     document.getElementById('monthly_rent').value = space.monthly_rent;
+    document.getElementById('security_deposit').value = 0;
+    document.getElementById('initial_payment_amount').value = 0;
     
     // Set default dates
     const today = new Date();
@@ -274,7 +426,25 @@ function assignSpace(space) {
     document.getElementById('start_date').value = today.toISOString().split('T')[0];
     document.getElementById('end_date').value = oneYearLater.toISOString().split('T')[0];
     
+    // Calculate total amount due
+    calculateTotalDue();
+    
     document.getElementById('assignModal').style.display = 'block';
+}
+
+function calculateTotalDue() {
+    const monthlyRent = parseFloat(document.getElementById('monthly_rent').value) || 0;
+    const securityDeposit = parseFloat(document.getElementById('security_deposit').value) || 0;
+    const totalDue = monthlyRent + securityDeposit;
+    document.getElementById('total_amount_due').value = totalDue.toFixed(2);
+    calculateRemaining();
+}
+
+function calculateRemaining() {
+    const totalDue = parseFloat(document.getElementById('total_amount_due').value) || 0;
+    const initialPayment = parseFloat(document.getElementById('initial_payment_amount').value) || 0;
+    const remaining = Math.max(0, totalDue - initialPayment);
+    document.getElementById('remaining_balance').value = remaining.toFixed(2);
 }
 
 function closeAssignModal() {
@@ -293,6 +463,88 @@ function loadCustomerDetails() {
         // Customer details can be loaded here if needed
     }
 }
+
+function openAddCustomerModal() {
+    document.getElementById('addCustomerModal').style.display = 'block';
+    document.getElementById('addCustomerForm').reset();
+    document.getElementById('addCustomerMessage').style.display = 'none';
+}
+
+function closeAddCustomerModal() {
+    document.getElementById('addCustomerModal').style.display = 'none';
+    document.getElementById('addCustomerForm').reset();
+    document.getElementById('addCustomerMessage').style.display = 'none';
+}
+
+// Handle add customer form submission
+document.getElementById('addCustomerForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const messageDiv = document.getElementById('addCustomerMessage');
+    messageDiv.style.display = 'none';
+    
+    // Show loading state
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+    
+    fetch('<?php echo BASE_URL; ?>admin/add-customer-ajax.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Add customer to dropdown
+            const customerSelect = document.getElementById('customer_id');
+            const option = document.createElement('option');
+            option.value = data.customer.customer_id;
+            option.textContent = data.customer.full_name + ' (' + data.customer.phone + ')';
+            option.setAttribute('data-name', data.customer.full_name);
+            option.setAttribute('data-email', data.customer.email || '');
+            option.setAttribute('data-phone', data.customer.phone);
+            customerSelect.appendChild(option);
+            
+            // Select the newly added customer
+            customerSelect.value = data.customer.customer_id;
+            
+            // Show success message
+            messageDiv.className = 'alert alert-success';
+            messageDiv.innerHTML = '<i class="fas fa-check-circle"></i> ' + data.message;
+            messageDiv.style.display = 'block';
+            
+            // Close modal after a short delay
+            setTimeout(() => {
+                closeAddCustomerModal();
+            }, 1500);
+        } else {
+            // Show error message
+            messageDiv.className = 'alert alert-danger';
+            messageDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + data.message;
+            messageDiv.style.display = 'block';
+        }
+        
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    })
+    .catch(error => {
+        messageDiv.className = 'alert alert-danger';
+        messageDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> An error occurred. Please try again.';
+        messageDiv.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    });
+});
+
+// Close add customer modal when clicking outside
+window.addEventListener('click', function(event) {
+    const modal = document.getElementById('addCustomerModal');
+    if (event.target == modal) {
+        closeAddCustomerModal();
+    }
+});
 
 function unassignSpace(spaceId, spaceType) {
     if (confirm('Are you sure you want to unassign this space?')) {

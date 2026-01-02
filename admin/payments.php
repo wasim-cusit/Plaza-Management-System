@@ -8,21 +8,31 @@ $message_type = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['action'])) {
-        if ($_POST['action'] === 'add') {
-            $tenant_id = intval($_POST['tenant_id']);
+        if ($_POST['action'] === 'add_payment') {
+            $customer_id = intval($_POST['customer_id']);
             $agreement_id = !empty($_POST['agreement_id']) ? intval($_POST['agreement_id']) : null;
-            $ledger_id = !empty($_POST['ledger_id']) ? intval($_POST['ledger_id']) : null;
+            $ledger_ids_str = $_POST['ledger_ids'] ?? '';
             $amount = floatval($_POST['amount']);
             $payment_date = $_POST['payment_date'];
             $payment_method = $_POST['payment_method'];
-            $transaction_id = trim($_POST['transaction_id']);
+            $transaction_id = trim($_POST['transaction_id'] ?? '');
             $status = $_POST['status'];
-            $notes = trim($_POST['notes']);
+            $notes = trim($_POST['notes'] ?? '');
+
+            // Parse ledger IDs (comma-separated)
+            $ledger_ids = [];
+            if ($ledger_ids_str) {
+                $ledger_ids = array_map('intval', explode(',', $ledger_ids_str));
+                $ledger_ids = array_filter($ledger_ids); // Remove empty values
+            }
 
             // Handle receipt file upload
             $receipt_file = null;
             if (isset($_FILES['receipt_file']) && $_FILES['receipt_file']['error'] === UPLOAD_ERR_OK) {
                 $upload_dir = RECEIPT_UPLOAD_DIR;
+                if (!file_exists($upload_dir)) {
+                    mkdir($upload_dir, 0777, true);
+                }
                 $file_ext = pathinfo($_FILES['receipt_file']['name'], PATHINFO_EXTENSION);
                 $receipt_file = 'receipt_' . time() . '_' . uniqid() . '.' . $file_ext;
                 $upload_path = $upload_dir . $receipt_file;
@@ -34,16 +44,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if (!$message) {
-                $stmt = $conn->prepare("INSERT INTO payments (tenant_id, agreement_id, ledger_id, amount, payment_date, payment_method, transaction_id, receipt_file, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmt->bind_param("iiiissssss", $tenant_id, $agreement_id, $ledger_id, $amount, $payment_date, $payment_method, $transaction_id, $receipt_file, $status, $notes);
+                // Use first ledger_id for the payment record (for backward compatibility)
+                $primary_ledger_id = !empty($ledger_ids) ? $ledger_ids[0] : null;
+                
+                // Store all ledger IDs in notes for reference
+                $notes_with_ledger_ids = $notes;
+                if (!empty($ledger_ids)) {
+                    $notes_with_ledger_ids = ($notes ? $notes . "\n\n" : '') . 'Ledger IDs: ' . implode(',', $ledger_ids);
+                }
+                
+                $stmt = $conn->prepare("INSERT INTO payments (customer_id, agreement_id, ledger_id, amount, payment_date, payment_method, transaction_id, receipt_file, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param("iiiissssss", $customer_id, $agreement_id, $primary_ledger_id, $amount, $payment_date, $payment_method, $transaction_id, $receipt_file, $status, $notes_with_ledger_ids);
                 
                 if ($stmt->execute()) {
-                    // Update ledger status if ledger_id is provided
-                    if ($ledger_id) {
-                        $conn->query("UPDATE ledger SET status = 'paid' WHERE ledger_id = $ledger_id");
+                    $payment_id = $conn->insert_id;
+                    
+                    // Update all selected ledger entries to paid status
+                    if (!empty($ledger_ids)) {
+                        $ledger_ids_str_safe = implode(',', array_map('intval', $ledger_ids));
+                        $conn->query("UPDATE ledger SET status = 'paid' WHERE ledger_id IN ($ledger_ids_str_safe)");
                     }
                     
-                    $message = 'Payment recorded successfully!';
+                    $message = 'Payment recorded successfully! ' . (count($ledger_ids) > 1 ? '(' . count($ledger_ids) . ' items combined)' : '');
                     $message_type = 'success';
                 } else {
                     $message = 'Error recording payment: ' . $conn->error;
@@ -51,77 +73,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 $stmt->close();
             }
-        } elseif ($_POST['action'] === 'update') {
-            $payment_id = intval($_POST['payment_id']);
-            $tenant_id = intval($_POST['tenant_id']);
-            $agreement_id = !empty($_POST['agreement_id']) ? intval($_POST['agreement_id']) : null;
-            $ledger_id = !empty($_POST['ledger_id']) ? intval($_POST['ledger_id']) : null;
-            $amount = floatval($_POST['amount']);
-            $payment_date = $_POST['payment_date'];
-            $payment_method = $_POST['payment_method'];
-            $transaction_id = trim($_POST['transaction_id']);
-            $status = $_POST['status'];
-            $notes = trim($_POST['notes']);
-
-            // Handle receipt file upload
-            $receipt_file = null;
-            if (isset($_FILES['receipt_file']) && $_FILES['receipt_file']['error'] === UPLOAD_ERR_OK) {
-                $upload_dir = RECEIPT_UPLOAD_DIR;
-                $file_ext = pathinfo($_FILES['receipt_file']['name'], PATHINFO_EXTENSION);
-                $receipt_file = 'receipt_' . time() . '_' . uniqid() . '.' . $file_ext;
-                $upload_path = $upload_dir . $receipt_file;
-                
-                if (move_uploaded_file($_FILES['receipt_file']['tmp_name'], $upload_path)) {
-                    // Delete old file
-                    $old_payment = $conn->query("SELECT receipt_file FROM payments WHERE payment_id = $payment_id")->fetch_assoc();
-                    if ($old_payment && $old_payment['receipt_file']) {
-                        $old_file = $upload_dir . $old_payment['receipt_file'];
-                        if (file_exists($old_file)) {
-                            unlink($old_file);
-                        }
-                    }
-                }
-            } else {
-                $existing = $conn->query("SELECT receipt_file FROM payments WHERE payment_id = $payment_id")->fetch_assoc();
-                $receipt_file = $existing['receipt_file'];
-            }
-
-            if ($receipt_file) {
-                $stmt = $conn->prepare("UPDATE payments SET tenant_id = ?, agreement_id = ?, ledger_id = ?, amount = ?, payment_date = ?, payment_method = ?, transaction_id = ?, receipt_file = ?, status = ?, notes = ? WHERE payment_id = ?");
-                $stmt->bind_param("iiiissssssi", $tenant_id, $agreement_id, $ledger_id, $amount, $payment_date, $payment_method, $transaction_id, $receipt_file, $status, $notes, $payment_id);
-            } else {
-                $stmt = $conn->prepare("UPDATE payments SET tenant_id = ?, agreement_id = ?, ledger_id = ?, amount = ?, payment_date = ?, payment_method = ?, transaction_id = ?, status = ?, notes = ? WHERE payment_id = ?");
-                $stmt->bind_param("iiiisssssi", $tenant_id, $agreement_id, $ledger_id, $amount, $payment_date, $payment_method, $transaction_id, $status, $notes, $payment_id);
-            }
-            
-            if ($stmt->execute()) {
-                $message = 'Payment updated successfully!';
-                $message_type = 'success';
-            } else {
-                $message = 'Error updating payment: ' . $conn->error;
-                $message_type = 'danger';
-            }
-            $stmt->close();
         }
     }
 }
 
-$payments = $conn->query("SELECT p.*, u.full_name as tenant_name, a.agreement_number FROM payments p 
-                          JOIN users u ON p.tenant_id = u.user_id 
+// Get all completed payments
+$payments = $conn->query("SELECT p.*, c.full_name as customer_name, a.agreement_number FROM payments p 
+                          JOIN customers c ON p.customer_id = c.customer_id 
                           LEFT JOIN agreements a ON p.agreement_id = a.agreement_id 
                           ORDER BY p.created_at DESC");
 
-$tenants = $conn->query("SELECT user_id, full_name, username FROM users WHERE user_type = 'tenant' ORDER BY full_name");
-$agreements = $conn->query("SELECT agreement_id, agreement_number, tenant_id FROM agreements ORDER BY agreement_number");
-$ledger_entries = $conn->query("SELECT ledger_id, invoice_number, amount, tenant_id FROM ledger WHERE status != 'paid' ORDER BY created_at DESC");
+// Get pending/remaining balances (ledger entries with status pending or overdue)
+$pending_balances = $conn->query("SELECT l.*, c.full_name as customer_name, a.agreement_number FROM ledger l 
+                                  JOIN customers c ON l.customer_id = c.customer_id 
+                                  LEFT JOIN agreements a ON l.agreement_id = a.agreement_id 
+                                  WHERE l.status IN ('pending', 'overdue')
+                                  ORDER BY l.payment_date ASC, l.created_at DESC");
 
-$page_title = 'Payment Management - Plaza Management System';
+// Get customers, agreements, and ledger entries for forms
+$customers = $conn->query("SELECT customer_id, full_name, phone FROM customers WHERE status = 'active' ORDER BY full_name");
+$agreements = $conn->query("SELECT agreement_id, agreement_number, customer_id FROM agreements ORDER BY agreement_number");
+$ledger_entries = $conn->query("SELECT ledger_id, invoice_number, amount, customer_id, status, transaction_type FROM ledger WHERE status IN ('pending', 'overdue') ORDER BY created_at DESC");
+
+$page_title = 'Payments - Plaza Management System';
 include '../includes/header.php';
 ?>
 
 <div class="card">
     <div class="card-header">
-        <h1 class="card-title"><i class="fas fa-money-bill-wave"></i> Payment Management</h1>
+        <h1 class="card-title"><i class="fas fa-money-bill-wave"></i> Payments</h1>
         <button class="btn btn-primary" onclick="document.getElementById('addPaymentModal').style.display='block'">
             <i class="fas fa-plus"></i> Record Payment
         </button>
@@ -134,62 +114,121 @@ include '../includes/header.php';
         </div>
     <?php endif; ?>
 
-    <div class="table-container">
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                            <th>Customer</th>
-                    <th>Agreement</th>
-                    <th>Amount</th>
-                    <th>Method</th>
-                    <th>Transaction ID</th>
-                    <th>Status</th>
-                    <th>Receipt</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php if ($payments->num_rows > 0): ?>
-                    <?php while ($payment = $payments->fetch_assoc()): ?>
+    <!-- Pending/Remaining Balances Section -->
+    <?php if ($pending_balances->num_rows > 0): ?>
+    <div class="card" style="margin-bottom: 2rem; border-left: 4px solid var(--warning-color);">
+        <div class="card-header" style="background: linear-gradient(135deg, var(--warning-color) 0%, #d97706 100%); color: white; border-bottom: none; padding: 1rem 1.5rem;">
+            <h2 class="card-title" style="color: white; margin: 0; font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fas fa-exclamation-triangle"></i> Pending/Remaining Balances
+            </h2>
+        </div>
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Customer</th>
+                        <th>Agreement</th>
+                        <th>Type</th>
+                        <th>Amount</th>
+                        <th>Due Date</th>
+                        <th>Status</th>
+                        <th>Invoice #</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php while ($balance = $pending_balances->fetch_assoc()): ?>
                         <tr>
-                            <td><?php echo formatDate($payment['payment_date']); ?></td>
-                            <td><?php echo htmlspecialchars($payment['tenant_name']); ?></td>
-                            <td><?php echo htmlspecialchars($payment['agreement_number'] ?? '-'); ?></td>
-                            <td><?php echo formatCurrency($payment['amount']); ?></td>
-                            <td><?php echo ucfirst(str_replace('_', ' ', $payment['payment_method'])); ?></td>
-                            <td><?php echo htmlspecialchars($payment['transaction_id'] ?? '-'); ?></td>
+                            <td><?php echo htmlspecialchars($balance['customer_name']); ?></td>
+                            <td><?php echo htmlspecialchars($balance['agreement_number'] ?? '-'); ?></td>
+                            <td><span class="badge badge-info"><?php echo ucfirst(str_replace('_', ' ', $balance['transaction_type'])); ?></span></td>
+                            <td><strong><?php echo formatCurrency($balance['amount']); ?></strong></td>
+                            <td><?php echo formatDate($balance['payment_date']); ?></td>
                             <td>
-                                <span class="badge badge-<?php 
-                                    echo $payment['status'] === 'completed' ? 'success' : 
-                                        ($payment['status'] === 'failed' ? 'danger' : 'warning'); 
-                                ?>">
-                                    <?php echo ucfirst($payment['status']); ?>
+                                <span class="badge badge-<?php echo $balance['status'] === 'overdue' ? 'danger' : 'warning'; ?>">
+                                    <?php echo ucfirst($balance['status']); ?>
                                 </span>
                             </td>
+                            <td><?php echo htmlspecialchars($balance['invoice_number'] ?? '-'); ?></td>
                             <td>
-                                <?php if ($payment['receipt_file']): ?>
-                                    <a href="<?php echo BASE_URL; ?>uploads/receipts/<?php echo htmlspecialchars($payment['receipt_file']); ?>" target="_blank" class="btn btn-sm btn-primary" title="View Receipt">
-                                        <i class="fas fa-download"></i>
-                                    </a>
-                                <?php else: ?>
-                                    <span style="color: var(--text-light);">-</span>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <button class="btn btn-sm btn-primary" onclick="editPayment(<?php echo htmlspecialchars(json_encode($payment)); ?>)" title="Edit">
-                                    <i class="fas fa-edit"></i>
+                                <button class="btn btn-sm btn-primary" onclick="payRemainingBalance(<?php echo htmlspecialchars(json_encode($balance)); ?>)" title="Pay Now">
+                                    <i class="fas fa-money-bill"></i> Pay Now
                                 </button>
                             </td>
                         </tr>
                     <?php endwhile; ?>
-                <?php else: ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <!-- All Payments Section -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title"><i class="fas fa-check-circle"></i> All Payments</h2>
+        </div>
+        <div class="table-container">
+            <table class="table">
+                <thead>
                     <tr>
-                        <td colspan="9" style="text-align: center; color: var(--text-light);">No payments found</td>
+                        <th>Date</th>
+                        <th>Customer</th>
+                        <th>Agreement</th>
+                        <th>Amount</th>
+                        <th>Method</th>
+                        <th>Transaction ID</th>
+                        <th>Status</th>
+                        <th>Receipt</th>
+                        <th>Actions</th>
                     </tr>
-                <?php endif; ?>
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    <?php if ($payments->num_rows > 0): ?>
+                        <?php while ($payment = $payments->fetch_assoc()): ?>
+                            <tr>
+                                <td><?php echo formatDate($payment['payment_date']); ?></td>
+                                <td><?php echo htmlspecialchars($payment['customer_name']); ?></td>
+                                <td><?php echo htmlspecialchars($payment['agreement_number'] ?? '-'); ?></td>
+                                <td><?php echo formatCurrency($payment['amount']); ?></td>
+                                <td><?php echo ucfirst(str_replace('_', ' ', $payment['payment_method'])); ?></td>
+                                <td><?php echo htmlspecialchars($payment['transaction_id'] ?? '-'); ?></td>
+                                <td>
+                                    <span class="badge badge-<?php 
+                                        echo $payment['status'] === 'completed' ? 'success' : 
+                                            ($payment['status'] === 'failed' ? 'danger' : 'warning'); 
+                                    ?>">
+                                        <?php echo ucfirst($payment['status']); ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <?php if ($payment['receipt_file']): ?>
+                                        <a href="<?php echo BASE_URL; ?>uploads/receipts/<?php echo htmlspecialchars($payment['receipt_file']); ?>" target="_blank" class="btn btn-sm btn-primary" title="View Receipt">
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                    <?php else: ?>
+                                        <span style="color: var(--text-light);">-</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <?php if ($payment['ledger_id']): ?>
+                                            <a href="<?php echo BASE_URL; ?>admin/print-invoice.php?ledger_id=<?php echo $payment['ledger_id']; ?>" target="_blank" class="btn btn-sm btn-primary" title="Print Invoice">
+                                                <i class="fas fa-print"></i>
+                                            </a>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endwhile; ?>
+                    <?php else: ?>
+                        <tr>
+                            <td colspan="9" style="text-align: center; color: var(--text-light);">No payments found</td>
+                        </tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
@@ -197,23 +236,23 @@ include '../includes/header.php';
 <div id="addPaymentModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); overflow: auto;">
     <div class="card" style="max-width: 600px; margin: 5% auto; position: relative;">
         <div class="card-header">
-            <h2 class="card-title" id="modalTitle">Record Payment</h2>
-            <button onclick="closeModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+            <h2 class="card-title" id="paymentModalTitle">Record Payment</h2>
+            <button onclick="closePaymentModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
         </div>
         <form method="POST" id="paymentForm" enctype="multipart/form-data">
-            <input type="hidden" name="action" id="formAction" value="add">
+            <input type="hidden" name="action" id="paymentFormAction" value="add_payment">
             <input type="hidden" name="payment_id" id="payment_id">
             
             <div class="form-group">
                 <label class="form-label">Customer *</label>
-                <select class="form-control" name="tenant_id" id="tenant_id" required onchange="updateOptions()">
+                <select class="form-control" name="customer_id" id="payment_customer_id" required onchange="updatePaymentOptions()">
                     <option value="">Select Customer</option>
                     <?php 
-                    $tenants->data_seek(0);
-                    while ($tenant = $tenants->fetch_assoc()): 
+                    $customers->data_seek(0);
+                    while ($customer = $customers->fetch_assoc()): 
                     ?>
-                        <option value="<?php echo $tenant['user_id']; ?>">
-                            <?php echo htmlspecialchars($tenant['full_name'] . ' (' . $tenant['username'] . ')'); ?>
+                        <option value="<?php echo $customer['customer_id']; ?>">
+                            <?php echo htmlspecialchars($customer['full_name'] . ' (' . $customer['phone'] . ')'); ?>
                         </option>
                     <?php endwhile; ?>
                 </select>
@@ -221,22 +260,25 @@ include '../includes/header.php';
 
             <div class="form-group">
                 <label class="form-label">Agreement (Optional)</label>
-                <select class="form-control" name="agreement_id" id="agreement_id">
+                <select class="form-control" name="agreement_id" id="payment_agreement_id">
                     <option value="">Select Agreement</option>
                 </select>
             </div>
 
             <div class="form-group">
-                <label class="form-label">Ledger Entry (Optional)</label>
-                <select class="form-control" name="ledger_id" id="ledger_id">
-                    <option value="">Select Ledger Entry</option>
-                </select>
+                <label class="form-label">Select Items to Pay (Select multiple for combined payment)</label>
+                <div id="ledger_items_container" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 0.375rem; padding: 0.75rem;">
+                    <p style="color: var(--text-light); font-size: 0.875rem; margin: 0;">Select a customer first</p>
+                </div>
+                <input type="hidden" name="ledger_ids" id="payment_ledger_ids" value="">
+                <small style="color: var(--text-light);">You can select multiple items (e.g., Rent + Security Deposit) to combine in one payment</small>
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                 <div class="form-group">
-                    <label class="form-label">Amount *</label>
-                    <input type="number" step="0.01" class="form-control" name="amount" id="amount" required>
+                    <label class="form-label">Total Amount *</label>
+                    <input type="number" step="0.01" class="form-control" name="amount" id="payment_amount" required readonly style="background-color: var(--light-color); font-weight: bold;">
+                    <small style="color: var(--text-light);">Auto-calculated from selected items</small>
                 </div>
 
                 <div class="form-group">
@@ -258,7 +300,7 @@ include '../includes/header.php';
 
                 <div class="form-group">
                     <label class="form-label">Status *</label>
-                    <select class="form-control" name="status" id="status" required>
+                    <select class="form-control" name="status" id="payment_status" required>
                         <option value="completed">Completed</option>
                         <option value="pending">Pending</option>
                         <option value="failed">Failed</option>
@@ -268,7 +310,7 @@ include '../includes/header.php';
 
             <div class="form-group">
                 <label class="form-label">Transaction ID</label>
-                <input type="text" class="form-control" name="transaction_id" id="transaction_id">
+                <input type="text" class="form-control" name="transaction_id" id="payment_transaction_id">
             </div>
 
             <div class="form-group">
@@ -279,11 +321,11 @@ include '../includes/header.php';
 
             <div class="form-group">
                 <label class="form-label">Notes</label>
-                <textarea class="form-control" name="notes" id="notes" rows="3"></textarea>
+                <textarea class="form-control" name="notes" id="payment_notes" rows="3"></textarea>
             </div>
 
             <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button type="button" class="btn btn-secondary" onclick="closePaymentModal()">Cancel</button>
                 <button type="submit" class="btn btn-primary">Save Payment</button>
             </div>
         </form>
@@ -294,63 +336,125 @@ include '../includes/header.php';
 const agreements = <?php echo json_encode($agreements->fetch_all(MYSQLI_ASSOC)); ?>;
 const ledgerEntries = <?php echo json_encode($ledger_entries->fetch_all(MYSQLI_ASSOC)); ?>;
 
-function updateOptions() {
-    const tenantId = document.getElementById('tenant_id').value;
-    const agreementSelect = document.getElementById('agreement_id');
-    const ledgerSelect = document.getElementById('ledger_id');
+// Store ledger entries data for current customer
+let currentLedgerEntries = [];
+
+function updatePaymentOptions() {
+    const customerId = document.getElementById('payment_customer_id').value;
+    const agreementSelect = document.getElementById('payment_agreement_id');
+    const ledgerContainer = document.getElementById('ledger_items_container');
     
     agreementSelect.innerHTML = '<option value="">Select Agreement</option>';
-    ledgerSelect.innerHTML = '<option value="">Select Ledger Entry</option>';
+    ledgerContainer.innerHTML = '';
+    currentLedgerEntries = [];
     
-    agreements.filter(a => a.tenant_id == tenantId).forEach(agreement => {
+    if (!customerId) {
+        ledgerContainer.innerHTML = '<p style="color: var(--text-light); font-size: 0.875rem; margin: 0;">Select a customer first</p>';
+        updateTotalAmount();
+        return;
+    }
+    
+    agreements.filter(a => a.customer_id == customerId).forEach(agreement => {
         const opt = document.createElement('option');
         opt.value = agreement.agreement_id;
         opt.textContent = agreement.agreement_number;
         agreementSelect.appendChild(opt);
     });
     
-    ledgerEntries.filter(l => l.tenant_id == tenantId).forEach(entry => {
-        const opt = document.createElement('option');
-        opt.value = entry.ledger_id;
-        opt.textContent = entry.invoice_number + ' - ' + entry.amount;
-        ledgerSelect.appendChild(opt);
+    const filteredEntries = ledgerEntries.filter(l => l.customer_id == customerId && (l.status === 'pending' || l.status === 'overdue'));
+    currentLedgerEntries = filteredEntries;
+    
+    if (filteredEntries.length === 0) {
+        ledgerContainer.innerHTML = '<p style="color: var(--text-light); font-size: 0.875rem; margin: 0;">No pending balances found</p>';
+    } else {
+        filteredEntries.forEach(entry => {
+            const div = document.createElement('div');
+            div.style.cssText = 'display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; border-bottom: 1px solid var(--border-color);';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = entry.ledger_id;
+            checkbox.id = 'ledger_' + entry.ledger_id;
+            checkbox.setAttribute('data-amount', entry.amount);
+            checkbox.setAttribute('data-type', entry.transaction_type || 'other');
+            checkbox.addEventListener('change', updateTotalAmount);
+            
+            const label = document.createElement('label');
+            label.htmlFor = 'ledger_' + entry.ledger_id;
+            label.style.cssText = 'flex: 1; cursor: pointer; margin: 0;';
+            label.innerHTML = `
+                <strong>${entry.invoice_number || 'INV-' + entry.ledger_id}</strong> - 
+                <span style="color: var(--primary-color); font-weight: 600;">${formatCurrency(entry.amount)}</span>
+                <span style="color: var(--text-light); font-size: 0.875rem;">(${entry.transaction_type ? entry.transaction_type.replace('_', ' ') : 'Other'})</span>
+            `;
+            
+            div.appendChild(checkbox);
+            div.appendChild(label);
+            ledgerContainer.appendChild(div);
+        });
+    }
+    
+    updateTotalAmount();
+}
+
+function updateTotalAmount() {
+    const checkboxes = document.querySelectorAll('#ledger_items_container input[type="checkbox"]:checked');
+    const ledgerIdsInput = document.getElementById('payment_ledger_ids');
+    const amountInput = document.getElementById('payment_amount');
+    
+    let total = 0;
+    const selectedIds = [];
+    
+    checkboxes.forEach(checkbox => {
+        const amount = parseFloat(checkbox.getAttribute('data-amount')) || 0;
+        total += amount;
+        selectedIds.push(checkbox.value);
     });
+    
+    ledgerIdsInput.value = selectedIds.join(',');
+    amountInput.value = total.toFixed(2);
 }
 
-function closeModal() {
-    document.getElementById('addPaymentModal').style.display = 'none';
-    document.getElementById('paymentForm').reset();
-    document.getElementById('formAction').value = 'add';
-    document.getElementById('modalTitle').textContent = 'Record Payment';
-    document.getElementById('payment_date').value = '<?php echo date('Y-m-d'); ?>';
-}
-
-function editPayment(payment) {
-    document.getElementById('formAction').value = 'update';
-    document.getElementById('payment_id').value = payment.payment_id;
-    document.getElementById('tenant_id').value = payment.tenant_id;
-    updateOptions();
+function payRemainingBalance(balance) {
+    document.getElementById('payment_customer_id').value = balance.customer_id;
+    updatePaymentOptions();
     setTimeout(() => {
-        document.getElementById('agreement_id').value = payment.agreement_id || '';
-        document.getElementById('ledger_id').value = payment.ledger_id || '';
+        // Check the specific ledger entry
+        const checkbox = document.getElementById('ledger_' + balance.ledger_id);
+        if (checkbox) {
+            checkbox.checked = true;
+            updateTotalAmount();
+        }
+        if (balance.agreement_id) {
+            document.getElementById('payment_agreement_id').value = balance.agreement_id;
+        }
     }, 100);
-    document.getElementById('amount').value = payment.amount;
-    document.getElementById('payment_date').value = payment.payment_date;
-    document.getElementById('payment_method').value = payment.payment_method;
-    document.getElementById('status').value = payment.status;
-    document.getElementById('transaction_id').value = payment.transaction_id || '';
-    document.getElementById('notes').value = payment.notes || '';
-    document.getElementById('modalTitle').textContent = 'Edit Payment';
+    document.getElementById('paymentModalTitle').textContent = 'Pay Remaining Balance';
     document.getElementById('addPaymentModal').style.display = 'block';
 }
 
+function closePaymentModal() {
+    document.getElementById('addPaymentModal').style.display = 'none';
+    document.getElementById('paymentForm').reset();
+    document.getElementById('paymentFormAction').value = 'add_payment';
+    document.getElementById('paymentModalTitle').textContent = 'Record Payment';
+    document.getElementById('payment_date').value = '<?php echo date('Y-m-d'); ?>';
+    document.getElementById('ledger_items_container').innerHTML = '<p style="color: var(--text-light); font-size: 0.875rem; margin: 0;">Select a customer first</p>';
+    document.getElementById('payment_ledger_ids').value = '';
+    document.getElementById('payment_amount').value = '';
+    currentLedgerEntries = [];
+}
+
+function formatCurrency(amount) {
+    return 'Rs ' + parseFloat(amount).toLocaleString('en-PK', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+
 window.onclick = function(event) {
-    const modal = document.getElementById('addPaymentModal');
-    if (event.target == modal) {
-        closeModal();
+    const paymentModal = document.getElementById('addPaymentModal');
+    if (event.target == paymentModal) {
+        closePaymentModal();
     }
 }
 </script>
 
 <?php include '../includes/footer.php'; ?>
-

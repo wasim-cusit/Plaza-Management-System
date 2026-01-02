@@ -70,7 +70,7 @@ if (isLoggedIn()) {
                             </a>
                         </li>
                         <li>
-                            <a href="<?php echo BASE_URL; ?>admin/ledger.php" class="<?php echo ($current_page == 'ledger.php') ? 'active' : ''; ?>">
+                            <a href="<?php echo BASE_URL; ?>admin/ledger.php" class="<?php echo ($current_page == 'ledger.php' || $current_page == 'payments-ledger.php') ? 'active' : ''; ?>">
                                 <i class="fas fa-book"></i>
                                 <span>Ledger</span>
                             </a>
@@ -187,7 +187,7 @@ if (isLoggedIn()) {
             <div class="nav-container">
                 <div class="nav-brand">
                     <i class="fas fa-building"></i>
-                    <span>Plaza MS - Internal Use Only</span>
+                    <!-- <span>Plaza MS - Internal Use Only</span> -->
                 </div>
             </div>
         </nav>

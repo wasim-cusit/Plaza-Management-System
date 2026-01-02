@@ -61,9 +61,9 @@ include '../includes/header.php';
         $stmt->execute();
         $financial_summary = $stmt->get_result()->fetch_assoc();
         
-        $detailed_query = "SELECT l.*, u.full_name as tenant_name, a.agreement_number 
+        $detailed_query = "SELECT l.*, c.full_name as customer_name, a.agreement_number 
                           FROM ledger l 
-                          JOIN users u ON l.tenant_id = u.user_id 
+                          LEFT JOIN customers c ON l.customer_id = c.customer_id 
                           LEFT JOIN agreements a ON l.agreement_id = a.agreement_id 
                           WHERE l.payment_date BETWEEN ? AND ? 
                           ORDER BY l.payment_date DESC";
@@ -127,7 +127,7 @@ include '../includes/header.php';
                             <?php while ($entry = $detailed_entries->fetch_assoc()): ?>
                                 <tr>
                                     <td><?php echo formatDate($entry['payment_date']); ?></td>
-                                    <td><?php echo htmlspecialchars($entry['tenant_name']); ?></td>
+                                    <td><?php echo htmlspecialchars($entry['customer_name'] ?? '-'); ?></td>
                                     <td><?php echo htmlspecialchars($entry['agreement_number'] ?? '-'); ?></td>
                                     <td><?php echo ucfirst(str_replace('_', ' ', $entry['transaction_type'])); ?></td>
                                     <td><?php echo formatCurrency($entry['amount']); ?></td>
@@ -154,22 +154,21 @@ include '../includes/header.php';
     <?php elseif ($report_type === 'tenant'): ?>
         <!-- Customer Report -->
         <?php
-        $tenant_query = "SELECT u.*, 
+        $customer_query = "SELECT c.*, 
             COUNT(DISTINCT a.agreement_id) as total_agreements,
             COUNT(DISTINCT CASE WHEN a.status = 'active' THEN a.agreement_id END) as active_agreements,
             SUM(CASE WHEN l.status = 'paid' THEN l.amount ELSE 0 END) as total_paid,
             SUM(CASE WHEN l.status = 'pending' THEN l.amount ELSE 0 END) as pending_amount
-            FROM users u
-            LEFT JOIN agreements a ON u.user_id = a.tenant_id
-            LEFT JOIN ledger l ON u.user_id = l.tenant_id AND l.payment_date BETWEEN ? AND ?
-            WHERE u.user_type = 'tenant'
-            GROUP BY u.user_id
-            ORDER BY u.full_name";
+            FROM customers c
+            LEFT JOIN agreements a ON c.customer_id = a.customer_id
+            LEFT JOIN ledger l ON c.customer_id = l.customer_id AND l.payment_date BETWEEN ? AND ?
+            GROUP BY c.customer_id
+            ORDER BY c.full_name";
         
-        $stmt = $conn->prepare($tenant_query);
+        $stmt = $conn->prepare($customer_query);
         $stmt->bind_param("ss", $start_date, $end_date);
         $stmt->execute();
-        $tenant_report = $stmt->get_result();
+        $customer_report = $stmt->get_result();
         ?>
         
         <div class="card">
@@ -191,19 +190,19 @@ include '../includes/header.php';
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if ($tenant_report->num_rows > 0): ?>
-                            <?php while ($tenant = $tenant_report->fetch_assoc()): ?>
+                        <?php if ($customer_report->num_rows > 0): ?>
+                            <?php while ($customer = $customer_report->fetch_assoc()): ?>
                                 <tr>
-                                    <td><?php echo htmlspecialchars($tenant['full_name']); ?></td>
-                                    <td><?php echo htmlspecialchars($tenant['email']); ?></td>
-                                    <td><?php echo htmlspecialchars($tenant['phone'] ?? '-'); ?></td>
-                                    <td><?php echo $tenant['total_agreements']; ?></td>
-                                    <td><?php echo $tenant['active_agreements']; ?></td>
-                                    <td><?php echo formatCurrency($tenant['total_paid'] ?? 0); ?></td>
-                                    <td><?php echo formatCurrency($tenant['pending_amount'] ?? 0); ?></td>
+                                    <td><?php echo htmlspecialchars($customer['full_name']); ?></td>
+                                    <td><?php echo htmlspecialchars($customer['email'] ?? '-'); ?></td>
+                                    <td><?php echo htmlspecialchars($customer['phone'] ?? '-'); ?></td>
+                                    <td><?php echo $customer['total_agreements']; ?></td>
+                                    <td><?php echo $customer['active_agreements']; ?></td>
+                                    <td><?php echo formatCurrency($customer['total_paid'] ?? 0); ?></td>
+                                    <td><?php echo formatCurrency($customer['pending_amount'] ?? 0); ?></td>
                                     <td>
-                                        <span class="badge badge-<?php echo $tenant['status'] === 'active' ? 'success' : 'danger'; ?>">
-                                            <?php echo ucfirst($tenant['status']); ?>
+                                        <span class="badge badge-<?php echo $customer['status'] === 'active' ? 'success' : 'danger'; ?>">
+                                            <?php echo ucfirst($customer['status']); ?>
                                         </span>
                                     </td>
                                 </tr>
@@ -221,14 +220,14 @@ include '../includes/header.php';
     <?php elseif ($report_type === 'lease'): ?>
         <!-- Lease Report -->
         <?php
-        $lease_query = "SELECT a.*, u.full_name as tenant_name,
+        $lease_query = "SELECT a.*, c.full_name as customer_name,
             CASE 
                 WHEN a.end_date < CURDATE() THEN 'expired'
                 WHEN a.end_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY) THEN 'expiring_soon'
                 ELSE 'active'
             END as lease_status
             FROM agreements a
-            JOIN users u ON a.tenant_id = u.user_id
+            LEFT JOIN customers c ON a.customer_id = c.customer_id
             WHERE a.start_date <= ? AND a.end_date >= ?
             ORDER BY a.end_date ASC";
         
@@ -261,7 +260,7 @@ include '../includes/header.php';
                             <?php while ($lease = $lease_report->fetch_assoc()): ?>
                                 <tr>
                                     <td><?php echo htmlspecialchars($lease['agreement_number']); ?></td>
-                                    <td><?php echo htmlspecialchars($lease['tenant_name']); ?></td>
+                                    <td><?php echo htmlspecialchars($lease['customer_name'] ?? '-'); ?></td>
                                     <td><span class="badge badge-info"><?php echo ucfirst($lease['space_type']); ?></span></td>
                                     <td><?php echo formatDate($lease['start_date']); ?></td>
                                     <td><?php echo formatDate($lease['end_date']); ?></td>
@@ -297,9 +296,9 @@ include '../includes/header.php';
     <?php elseif ($report_type === 'maintenance'): ?>
         <!-- Maintenance Report -->
         <?php
-        $maintenance_query = "SELECT m.*, u.full_name as tenant_name
+        $maintenance_query = "SELECT m.*, c.full_name as customer_name
             FROM maintenance_requests m
-            JOIN users u ON m.tenant_id = u.user_id
+            LEFT JOIN customers c ON m.customer_id = c.customer_id
             WHERE DATE(m.created_at) BETWEEN ? AND ?
             ORDER BY m.created_at DESC";
         
@@ -363,15 +362,15 @@ include '../includes/header.php';
                             <?php while ($request = $maintenance_report->fetch_assoc()): ?>
                                 <tr>
                                     <td><?php echo formatDate($request['created_at']); ?></td>
-                                    <td><?php echo htmlspecialchars($request['tenant_name']); ?></td>
-                                    <td><span class="badge badge-info"><?php echo ucfirst($request['space_type']); ?></span> #<?php echo $request['space_id']; ?></td>
+                                    <td><?php echo htmlspecialchars($request['customer_name'] ?? '-'); ?></td>
+                                    <td><span class="badge badge-info"><?php echo ucfirst($request['space_type'] ?? '-'); ?></span> #<?php echo $request['space_id'] ?? '-'; ?></td>
                                     <td><?php echo htmlspecialchars($request['issue_type'] ?? '-'); ?></td>
                                     <td>
                                         <span class="badge badge-<?php 
                                             echo $request['priority'] === 'urgent' ? 'danger' : 
                                                 ($request['priority'] === 'high' ? 'warning' : 'info'); 
                                         ?>">
-                                            <?php echo ucfirst($request['priority']); ?>
+                                            <?php echo ucfirst($request['priority'] ?? '-'); ?>
                                         </span>
                                     </td>
                                     <td>
@@ -379,11 +378,11 @@ include '../includes/header.php';
                                             echo $request['status'] === 'completed' ? 'success' : 
                                                 ($request['status'] === 'in_progress' ? 'warning' : 'secondary'); 
                                         ?>">
-                                            <?php echo ucfirst(str_replace('_', ' ', $request['status'])); ?>
+                                            <?php echo ucfirst(str_replace('_', ' ', $request['status'] ?? '-')); ?>
                                         </span>
                                     </td>
-                                    <td><?php echo formatCurrency($request['cost']); ?></td>
-                                    <td><?php echo $request['completed_date'] ? formatDate($request['completed_date']) : '-'; ?></td>
+                                    <td><?php echo formatCurrency($request['cost'] ?? 0); ?></td>
+                                    <td><?php echo formatDate($request['completed_date'] ?? ''); ?></td>
                                 </tr>
                             <?php endwhile; ?>
                         <?php else: ?>
